@@ -1,5 +1,5 @@
 -- ==========================================
--- Campus Gate Pass Database Schema (Guard Role Removed)
+-- Campus Gate Pass Database Schema
 -- Run this in the Supabase SQL Editor
 -- ==========================================
 
@@ -18,13 +18,14 @@ DROP FUNCTION IF EXISTS public.get_user_department(uuid);
 DROP TABLE IF EXISTS public.activity_log;
 DROP TABLE IF EXISTS public.leave_requests;
 DROP TABLE IF EXISTS public.profiles;
+DROP TABLE IF EXISTS public.admission_records;
 
 -- 4. Drop existing enums if they exist
 DROP TYPE IF EXISTS leave_status;
 DROP TYPE IF EXISTS leave_category;
 DROP TYPE IF EXISTS user_role;
 
--- 5. Create Enums (Guard removed)
+-- 5. Create Enums
 CREATE TYPE user_role AS ENUM ('student', 'faculty', 'hod', 'admin');
 CREATE TYPE leave_category AS ENUM ('medical', 'family emergency', 'personal', 'other');
 CREATE TYPE leave_status AS ENUM (
@@ -36,7 +37,17 @@ CREATE TYPE leave_status AS ENUM (
   'expired'
 );
 
--- 6. Create Profiles Table (Guard removed)
+-- 6. Create Pre-Authorized Admissions Table
+CREATE TABLE public.admission_records (
+  roll_number text PRIMARY KEY,
+  full_name text NOT NULL,
+  department text NOT NULL,
+  parent_name text NOT NULL,
+  parent_contact text NOT NULL,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 7. Create Profiles Table
 CREATE TABLE public.profiles (
   id uuid PRIMARY KEY, -- References auth.users(id)
   full_name text NOT NULL,
@@ -50,7 +61,7 @@ CREATE TABLE public.profiles (
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 7. Create Leave Requests Table (Gate logging columns removed)
+-- 8. Create Leave Requests Table
 CREATE TABLE public.leave_requests (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   student_id uuid REFERENCES public.profiles(id) NOT NULL,
@@ -80,7 +91,7 @@ CREATE TABLE public.leave_requests (
   updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 8. Create Activity Log Table
+-- 9. Create Activity Log Table
 CREATE TABLE public.activity_log (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   leave_request_id uuid REFERENCES public.leave_requests(id) ON DELETE CASCADE NOT NULL,
@@ -90,7 +101,7 @@ CREATE TABLE public.activity_log (
   notes text
 );
 
--- 9. Add Database Constraints & Indexes
+-- 10. Add Database Constraints & Indexes
 CREATE UNIQUE INDEX unique_pending_student_request 
 ON public.leave_requests (student_id) 
 WHERE (status IN ('pending_faculty', 'pending_hod'));
@@ -102,7 +113,7 @@ WHERE (status = 'approved');
 CREATE INDEX idx_leave_requests_pass_id ON public.leave_requests(pass_id);
 CREATE INDEX idx_leave_requests_requested_date ON public.leave_requests(requested_date);
 
--- 10. Helper functions for RLS
+-- 11. Helper functions for RLS
 CREATE OR REPLACE FUNCTION public.get_user_role(user_id uuid)
 RETURNS text AS $$
   SELECT role::text FROM public.profiles WHERE id = user_id;
@@ -113,7 +124,7 @@ RETURNS text AS $$
   SELECT department FROM public.profiles WHERE id = user_id;
 $$ LANGUAGE sql SECURITY DEFINER;
 
--- 11. Pass ID Generation Trigger
+-- 12. Pass ID Generation Trigger
 CREATE OR REPLACE FUNCTION public.generate_unique_pass_id()
 RETURNS trigger AS $$
 DECLARE
@@ -140,10 +151,21 @@ CREATE TRIGGER trg_generate_pass_id
   FOR EACH ROW
   EXECUTE FUNCTION generate_unique_pass_id();
 
--- 12. Row Level Security Configuration
+-- 13. Row Level Security Configuration
+ALTER TABLE public.admission_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.leave_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_log ENABLE ROW LEVEL SECURITY;
+
+-- Admissions Records Policies
+CREATE POLICY "Enable read access for all (anonymous signups verification)"
+ON public.admission_records FOR SELECT
+USING (true);
+
+CREATE POLICY "Enable all admin operations on admissions"
+ON public.admission_records FOR ALL
+TO authenticated
+USING (public.get_user_role(auth.uid()) = 'admin');
 
 -- Profiles Policies
 CREATE POLICY "Enable read access for authenticated users" 
@@ -238,7 +260,7 @@ ON public.activity_log FOR ALL
 TO authenticated
 USING (public.get_user_role(auth.uid()) = 'admin');
 
--- 13. Automatic Profile Creation Trigger
+-- 14. Automatic Profile Creation Trigger
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN

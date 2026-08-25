@@ -10,7 +10,6 @@ import {
   ClipboardList, 
   UserCheck, 
   Building2, 
-  Key, 
   Users,
   Compass
 } from 'lucide-react';
@@ -47,10 +46,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         return [
           { label: 'HOD Dashboard', path: '/hod', icon: Building2 }
         ];
-      case 'guard':
-        return [
-          { label: 'Gate Registry', path: '/guard', icon: Key }
-        ];
       case 'admin':
         return [
           { label: 'Admin Dashboard', path: '/admin', icon: Users }
@@ -85,7 +80,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             <button onClick={() => switchDemoRole('student@college.edu')} className="px-2 py-0.5 bg-white/10 hover:bg-white/20 rounded font-bold uppercase tracking-wider text-[9px]">Student</button>
             <button onClick={() => switchDemoRole('faculty@college.edu')} className="px-2 py-0.5 bg-white/10 hover:bg-white/20 rounded font-bold uppercase tracking-wider text-[9px]">Faculty</button>
             <button onClick={() => switchDemoRole('hod@college.edu')} className="px-2 py-0.5 bg-white/10 hover:bg-white/20 rounded font-bold uppercase tracking-wider text-[9px]">HOD</button>
-            <button onClick={() => switchDemoRole('guard@college.edu')} className="px-2 py-0.5 bg-white/10 hover:bg-white/20 rounded font-bold uppercase tracking-wider text-[9px]">Guard</button>
             <button onClick={() => switchDemoRole('admin@college.edu')} className="px-2 py-0.5 bg-white/10 hover:bg-white/20 rounded font-bold uppercase tracking-wider text-[9px]">Admin</button>
           </div>
         </div>

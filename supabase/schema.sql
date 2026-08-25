@@ -1,9 +1,9 @@
 -- ==========================================
--- Campus Gate Pass Database Schema
+-- Campus Gate Pass Database Schema (Guard Role Removed)
 -- Run this in the Supabase SQL Editor
 -- ==========================================
 
--- 1. Enable pgcrypto for password hashing in seeds (if needed)
+-- 1. Enable pgcrypto for password hashing
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- 2. Drop existing triggers and functions if they exist
@@ -24,8 +24,8 @@ DROP TYPE IF EXISTS leave_status;
 DROP TYPE IF EXISTS leave_category;
 DROP TYPE IF EXISTS user_role;
 
--- 5. Create Enums
-CREATE TYPE user_role AS ENUM ('student', 'faculty', 'hod', 'guard', 'admin');
+-- 5. Create Enums (Guard removed)
+CREATE TYPE user_role AS ENUM ('student', 'faculty', 'hod', 'admin');
 CREATE TYPE leave_category AS ENUM ('medical', 'family emergency', 'personal', 'other');
 CREATE TYPE leave_status AS ENUM (
   'pending_faculty', 
@@ -33,13 +33,12 @@ CREATE TYPE leave_status AS ENUM (
   'approved', 
   'rejected_by_faculty', 
   'rejected_by_hod', 
-  'expired', 
-  'completed'
+  'expired'
 );
 
--- 6. Create Profiles Table
+-- 6. Create Profiles Table (Guard removed)
 CREATE TABLE public.profiles (
-  id uuid PRIMARY KEY, -- References auth.users(id) - handles manually to support both real auth & manual seeds
+  id uuid PRIMARY KEY, -- References auth.users(id)
   full_name text NOT NULL,
   role user_role NOT NULL,
   roll_number text UNIQUE, -- Nullable (for students only)
@@ -51,7 +50,7 @@ CREATE TABLE public.profiles (
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 7. Create Leave Requests Table
+-- 7. Create Leave Requests Table (Gate logging columns removed)
 CREATE TABLE public.leave_requests (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   student_id uuid REFERENCES public.profiles(id) NOT NULL,
@@ -76,8 +75,6 @@ CREATE TABLE public.leave_requests (
   -- Gate Pass fields
   pass_id text UNIQUE,
   pass_pdf_url text,
-  gate_exit_at timestamp with time zone,
-  gate_reentry_at timestamp with time zone,
   
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -88,23 +85,20 @@ CREATE TABLE public.activity_log (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   leave_request_id uuid REFERENCES public.leave_requests(id) ON DELETE CASCADE NOT NULL,
   actor_id uuid REFERENCES public.profiles(id) NOT NULL,
-  action text NOT NULL, -- 'submitted', 'faculty_confirmed_parent', 'faculty_approved', 'hod_approved', 'gate_scanned', etc.
+  action text NOT NULL, -- 'submitted', 'faculty_confirmed_parent', 'faculty_approved', 'hod_approved'
   timestamp timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
   notes text
 );
 
 -- 9. Add Database Constraints & Indexes
-
--- Index to enforce a student can only have ONE active request at a time
 CREATE UNIQUE INDEX unique_active_student_request 
 ON public.leave_requests (student_id) 
 WHERE (status IN ('pending_faculty', 'pending_hod', 'approved'));
 
--- Index for searching pass_id
 CREATE INDEX idx_leave_requests_pass_id ON public.leave_requests(pass_id);
 CREATE INDEX idx_leave_requests_requested_date ON public.leave_requests(requested_date);
 
--- 10. Helper functions for RLS (bypasses recursion)
+-- 10. Helper functions for RLS
 CREATE OR REPLACE FUNCTION public.get_user_role(user_id uuid)
 RETURNS text AS $$
   SELECT role::text FROM public.profiles WHERE id = user_id;
@@ -127,11 +121,8 @@ BEGIN
   IF NEW.status = 'approved' AND OLD.status = 'pending_hod' AND NEW.pass_id IS NULL THEN
     date_str := to_char(CURRENT_DATE, 'YYYY-MM-DD');
     WHILE NOT is_unique LOOP
-      -- Generate 4-character hex suffix
       random_suffix := substring(md5(random()::text) from 1 for 4);
       final_pass_id := 'GP-' || date_str || '-' || random_suffix;
-      
-      -- Verify uniqueness
       SELECT NOT EXISTS (SELECT 1 FROM public.leave_requests WHERE pass_id = final_pass_id) INTO is_unique;
     END LOOP;
     NEW.pass_id := final_pass_id;
@@ -143,7 +134,7 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_generate_pass_id
   BEFORE UPDATE ON public.leave_requests
   FOR EACH ROW
-  EXECUTE FUNCTION public.generate_unique_pass_id();
+  EXECUTE FUNCTION generate_unique_pass_id();
 
 -- 12. Row Level Security Configuration
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -220,24 +211,6 @@ USING (
   status = 'pending_hod'
 );
 
-CREATE POLICY "Guard can view approved same-day passes"
-ON public.leave_requests FOR SELECT
-TO authenticated
-USING (
-  public.get_user_role(auth.uid()) = 'guard' AND 
-  status = 'approved' AND 
-  requested_date = CURRENT_DATE
-);
-
-CREATE POLICY "Guard can update approved same-day passes"
-ON public.leave_requests FOR UPDATE
-TO authenticated
-USING (
-  public.get_user_role(auth.uid()) = 'guard' AND 
-  status = 'approved' AND 
-  requested_date = CURRENT_DATE
-);
-
 CREATE POLICY "Admin has full access on leave requests"
 ON public.leave_requests FOR ALL
 TO authenticated
@@ -261,7 +234,7 @@ ON public.activity_log FOR ALL
 TO authenticated
 USING (public.get_user_role(auth.uid()) = 'admin');
 
--- 13. Automatic Profile Creation Trigger for Supabase Auth
+-- 13. Automatic Profile Creation Trigger
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
@@ -286,8 +259,3 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
--- 14. SEED DATA SCRIPT (For testing via manual SQL insert)
--- Feel free to run these to create demo accounts with fixed UUIDs.
--- Remember to also add them to auth.users if you're using real authentication, 
--- or they will be created by local storage mockup in the frontend out-of-the-box.

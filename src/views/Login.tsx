@@ -29,7 +29,6 @@ export const Login: React.FC = () => {
       if (cleanEmail.includes('admin')) rolePath = 'admin';
       else if (cleanEmail.includes('faculty')) rolePath = 'faculty';
       else if (cleanEmail.includes('hod')) rolePath = 'hod';
-      else if (cleanEmail.includes('guard')) rolePath = 'guard';
 
       navigate(`/${rolePath}`);
     } else {
@@ -132,16 +131,10 @@ export const Login: React.FC = () => {
               HOD (CS)
             </button>
             <button 
-              onClick={() => fillCredentials('guard@college.edu')} 
+              onClick={() => fillCredentials('admin@college.edu')} 
               className="py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 font-semibold border border-slate-200 rounded text-center"
             >
-              Gate Guard
-            </button>
-            <button 
-              onClick={() => fillCredentials('admin@college.edu')} 
-              className="col-span-2 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 font-semibold border border-slate-200 rounded text-center"
-            >
-              System Administrator
+              Administrator
             </button>
           </div>
         </div>

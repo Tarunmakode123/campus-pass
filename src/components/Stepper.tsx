@@ -7,15 +7,13 @@ interface StepperProps {
 }
 
 export const Stepper: React.FC<StepperProps> = ({ request }) => {
-  const { status, pass_id, gate_exit_at, gate_reentry_at } = request;
+  const { status } = request;
 
-  // Define steps
+  // Define 3 steps
   const steps = [
     { label: 'Submitted', key: 'submitted' },
     { label: 'Faculty Confirmed', key: 'faculty' },
-    { label: 'HOD Approved', key: 'hod' },
-    { label: 'Pass Generated', key: 'pass' },
-    { label: 'Gate Verified', key: 'gate' }
+    { label: 'HOD Approved & Pass Issued', key: 'hod' }
   ];
 
   // Helper to determine step status
@@ -31,30 +29,15 @@ export const Stepper: React.FC<StepperProps> = ({ request }) => {
     if (stepKey === 'faculty') {
       if (isRejectedByFaculty) return 'inactive';
       if (isRejectedByHOD) return 'rejected';
-      const completedStates = ['pending_hod', 'approved', 'completed'];
+      const completedStates = ['pending_hod', 'approved'];
       if (completedStates.includes(status)) return 'completed';
       return 'active';
     }
 
     if (stepKey === 'hod') {
       if (isRejectedByFaculty || isRejectedByHOD) return 'inactive';
-      const completedStates = ['approved', 'completed'];
-      if (completedStates.includes(status)) return 'completed';
+      if (status === 'approved') return 'completed';
       if (status === 'pending_hod') return 'active';
-      return 'inactive';
-    }
-
-    if (stepKey === 'pass') {
-      if (isRejectedByFaculty || isRejectedByHOD) return 'inactive';
-      if (pass_id && ['approved', 'completed'].includes(status)) return 'completed';
-      if (status === 'approved' && !pass_id) return 'active';
-      return 'inactive';
-    }
-
-    if (stepKey === 'gate') {
-      if (isRejectedByFaculty || isRejectedByHOD) return 'inactive';
-      if (status === 'completed' || gate_reentry_at || gate_exit_at) return 'completed';
-      if (status === 'approved' && pass_id && !gate_exit_at) return 'active';
       return 'inactive';
     }
 
@@ -133,7 +116,7 @@ export const Stepper: React.FC<StepperProps> = ({ request }) => {
           );
         })}
       </div>
-      <div className="h-6 md:h-8" /> {/* Spacer for absolute horizontal labels */}
+      <div className="h-6 md:h-8" />
     </div>
   );
 };

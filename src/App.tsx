@@ -7,12 +7,11 @@ import { Login } from './views/Login';
 import { StudentDashboard } from './views/StudentDashboard';
 import { FacultyDashboard } from './views/FacultyDashboard';
 import { HODDashboard } from './views/HODDashboard';
-import { GuardDashboard } from './views/GuardDashboard';
 import { AdminDashboard } from './views/AdminDashboard';
 
 // Secure Routes by Role
 interface ProtectedRouteProps {
-  allowedRoles: ('student' | 'faculty' | 'hod' | 'guard' | 'admin')[];
+  allowedRoles: ('student' | 'faculty' | 'hod' | 'admin')[];
   children: React.ReactElement;
 }
 
@@ -84,14 +83,7 @@ function App() {
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/guard" 
-              element={
-                <ProtectedRoute allowedRoles={['guard']}>
-                  <GuardDashboard />
-                </ProtectedRoute>
-              } 
-            />
+
             <Route 
               path="/admin" 
               element={

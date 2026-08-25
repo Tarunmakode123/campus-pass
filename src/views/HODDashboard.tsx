@@ -136,9 +136,7 @@ export const HODDashboard: React.FC = () => {
       'Status', 
       'Faculty Confirmed', 
       'Faculty Notes', 
-      'HOD Notes', 
-      'Gate Exit At', 
-      'Gate Reentry At'
+      'HOD Notes'
     ];
 
     const rows = historyRequests.map(r => [
@@ -153,9 +151,7 @@ export const HODDashboard: React.FC = () => {
       r.status,
       r.faculty_confirmed_parent ? 'YES' : 'NO',
       r.faculty_notes || '',
-      r.hod_notes || '',
-      r.gate_exit_at || '',
-      r.gate_reentry_at || ''
+      r.hod_notes || ''
     ]);
 
     const csvContent = "\uFEFF" + [

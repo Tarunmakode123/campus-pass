@@ -9,7 +9,6 @@ import { Toast } from '../components/Toast';
 import { 
   FileText, 
   Plus, 
-  Smartphone, 
   Download, 
   Calendar, 
   Clock, 
@@ -31,7 +30,6 @@ export const StudentDashboard: React.FC = () => {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPdfGenerating, setIsPdfGenerating] = useState<string | null>(null);
-  const [showGatePassModal, setShowGatePassModal] = useState<LeaveRequest | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   if (!profile) return null;
@@ -226,13 +224,6 @@ export const StudentDashboard: React.FC = () => {
                             )}
                             Download PDF
                           </button>
-                          <button
-                            onClick={() => setShowGatePassModal(req)}
-                            className="px-3.5 py-2 bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5"
-                          >
-                            <Smartphone className="w-3.5 h-3.5" />
-                            Show at Gate
-                          </button>
                         </div>
                       )}
                     </div>
@@ -409,57 +400,7 @@ export const StudentDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* "Show at Gate" Fullscreen Mobile View Modal */}
-      {showGatePassModal && (
-        <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col justify-between p-6">
-          <div className="flex justify-between items-center text-white">
-            <span className="text-xs font-bold tracking-widest text-slate-400 uppercase">Emergency Permit</span>
-            <button 
-              onClick={() => setShowGatePassModal(null)}
-              className="text-white text-xl font-bold bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full"
-            >
-              Close
-            </button>
-          </div>
 
-          <div className="flex-1 flex flex-col items-center justify-center text-center my-6">
-            <div className="bg-white p-6 rounded-2xl w-full max-w-sm flex flex-col items-center shadow-2xl relative overflow-hidden">
-              {/* Header inside modal */}
-              <div className="absolute top-0 inset-x-0 h-2 bg-sky-600" />
-              
-              <span className="text-xs text-sky-600 font-bold uppercase tracking-wider mt-2">Active Gate Pass</span>
-              <h2 className="text-xl font-extrabold text-slate-800 mt-1">{showGatePassModal.pass_id}</h2>
-
-              {/* Simple Vector Mock QR Drawing in Modal */}
-              <div className="my-6 w-36 h-36 border border-slate-200 p-2 rounded-xl flex flex-wrap gap-1 bg-slate-50 justify-center items-center">
-                <div className="w-10 h-10 border-4 border-slate-800 rounded bg-slate-800 flex justify-center items-center"><div className="w-4 h-4 bg-white rounded" /></div>
-                <div className="w-10 h-10 flex flex-col justify-around py-1"><div className="h-1 bg-slate-800 w-full" /><div className="h-1 bg-slate-800 w-2/3" /><div className="h-1 bg-slate-800 w-4/5" /></div>
-                <div className="w-10 h-10 border-4 border-slate-800 rounded bg-slate-800 flex justify-center items-center"><div className="w-4 h-4 bg-white rounded" /></div>
-                <div className="w-10 h-10 flex gap-1 items-center"><div className="w-2.5 h-6 bg-slate-800" /><div className="w-2.5 h-6 bg-slate-800" /></div>
-                <div className="w-10 h-10 flex flex-wrap gap-0.5 p-1 bg-slate-800 rounded"><div className="w-2 h-2 bg-white" /><div className="w-2 h-2 bg-white" /><div className="w-2 h-2 bg-white" /><div className="w-2 h-2 bg-white" /></div>
-                <div className="w-10 h-10 flex flex-col justify-around py-1"><div className="h-1 bg-slate-800 w-full" /><div className="h-1 bg-slate-800 w-full" /></div>
-                <div className="w-10 h-10 border-4 border-slate-800 rounded bg-slate-800 flex justify-center items-center"><div className="w-4 h-4 bg-white rounded" /></div>
-                <div className="w-10 h-10 flex flex-col justify-around py-1"><div className="h-1 bg-slate-800 w-2/3" /><div className="h-1 bg-slate-800 w-full" /></div>
-                <div className="w-10 h-10 border border-dashed border-slate-400 bg-white" />
-              </div>
-
-              {/* Student details */}
-              <div className="text-slate-800 text-sm font-semibold space-y-1 w-full text-left border-t border-slate-100 pt-4">
-                <div className="flex justify-between"><span className="text-slate-400">Student:</span> <span>{showGatePassModal.student?.full_name}</span></div>
-                <div className="flex justify-between"><span className="text-slate-400">Roll Number:</span> <span>{showGatePassModal.student?.roll_number}</span></div>
-                <div className="flex justify-between"><span className="text-slate-400">Departure:</span> <span className="font-bold text-sky-700">{showGatePassModal.time_out}</span></div>
-                <div className="flex justify-between"><span className="text-slate-400">Return:</span> <span className="font-bold text-sky-700">{showGatePassModal.time_expected_back || 'No return'}</span></div>
-                <div className="flex justify-between"><span className="text-slate-400">Date:</span> <span>{showGatePassModal.requested_date}</span></div>
-              </div>
-            </div>
-          </div>
-
-          <div className="text-center text-slate-400 text-xs font-medium space-y-1">
-            <p>Show this screen to the gate security officer for exit scan.</p>
-            <p className="text-[10px] text-slate-500">Security officer will verify Pass ID #{showGatePassModal.pass_id} in the database registry.</p>
-          </div>
-        </div>
-      )}
 
       {toast && (
         <Toast 

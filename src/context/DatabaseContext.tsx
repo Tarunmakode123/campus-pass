@@ -24,8 +24,6 @@ export interface LeaveRequest {
 
   pass_id?: string | null;
   pass_pdf_url?: string | null;
-  gate_exit_at?: string | null;
-  gate_reentry_at?: string | null;
   
   created_at: string;
   updated_at: string;
@@ -55,7 +53,6 @@ interface DatabaseContextType {
   createRequest: (request: Omit<LeaveRequest, 'id' | 'status' | 'faculty_confirmed_parent' | 'created_at' | 'updated_at'>) => Promise<{ success: boolean; data?: LeaveRequest; error?: string }>;
   facultyAction: (requestId: string, approve: boolean, notes: string) => Promise<{ success: boolean; error?: string }>;
   hodAction: (requestId: string, approve: boolean, notes: string) => Promise<{ success: boolean; error?: string }>;
-  guardAction: (requestId: string, actionType: 'exit' | 'reentry', notes?: string) => Promise<{ success: boolean; error?: string }>;
   adminOverride: (requestId: string, status: LeaveRequest['status'], notes?: string) => Promise<{ success: boolean; error?: string }>;
   uploadPassPDF: (requestId: string, pdfBlob: Blob) => Promise<{ success: boolean; publicUrl?: string; error?: string }>;
   
@@ -103,8 +100,6 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           // RLS handles visibility, but we can filter too
         } else if (profile.role === 'hod') {
           query = query.eq('student.department', profile.department);
-        } else if (profile.role === 'guard') {
-          query = query.eq('status', 'approved');
         }
 
         const { data: requestsData, error: reqError } = await query.order('created_at', { ascending: false });
@@ -150,12 +145,6 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         } else if (profile.role === 'hod') {
           filteredRequests = filteredRequests.filter(
             r => r.student?.department === profile.department
-          );
-        } else if (profile.role === 'guard') {
-          // Guards only see approved requests for today
-          const today = new Date().toISOString().split('T')[0];
-          filteredRequests = filteredRequests.filter(
-            r => r.status === 'approved' && r.requested_date === today
           );
         }
 
@@ -444,73 +433,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  // Guard Action (Log Exit / Reentry)
-  const guardAction = async (requestId: string, actionType: 'exit' | 'reentry', notes?: string): Promise<{ success: boolean; error?: string }> => {
-    if (!profile) return { success: false, error: 'User profile not found' };
 
-    const timestampStr = new Date().toISOString();
-    const updatePayload = actionType === 'exit'
-      ? {
-          gate_exit_at: timestampStr,
-          updated_at: timestampStr
-        }
-      : {
-          gate_reentry_at: timestampStr,
-          status: 'completed' as const,
-          updated_at: timestampStr
-        };
-
-    const actionText = actionType === 'exit' ? 'gate_exit_logged' : 'gate_reentry_logged';
-
-    if (!isDemoMode) {
-      try {
-        const { error } = await supabase
-          .from('leave_requests')
-          .update(updatePayload)
-          .eq('id', requestId);
-
-        if (error) return { success: false, error: error.message };
-
-        // Log
-        await supabase.from('activity_log').insert([{
-          leave_request_id: requestId,
-          actor_id: profile.id,
-          action: actionText,
-          notes: notes || (actionType === 'exit' ? 'Gate exit recorded' : 'Gate re-entry recorded')
-        }]);
-
-        await refreshData();
-        return { success: true };
-      } catch (e: any) {
-        return { success: false, error: e.message };
-      }
-    } else {
-      // Mock Mode Update
-      const storedRequests: LeaveRequest[] = JSON.parse(localStorage.getItem('gp_mock_requests') || '[]');
-      const updated = storedRequests.map(r => {
-        if (r.id === requestId) {
-          return { ...r, ...updatePayload };
-        }
-        return r;
-      });
-      localStorage.setItem('gp_mock_requests', JSON.stringify(updated));
-
-      const newLog: ActivityLog = {
-        id: 'log-' + Math.random().toString(36).substr(2, 9),
-        leave_request_id: requestId,
-        actor_id: profile.id,
-        action: actionText,
-        timestamp: new Date().toISOString(),
-        notes: notes || (actionType === 'exit' ? 'Gate exit recorded' : 'Gate re-entry recorded')
-      };
-      const storedLogs = JSON.parse(localStorage.getItem('gp_mock_logs') || '[]');
-      storedLogs.push(newLog);
-      localStorage.setItem('gp_mock_logs', JSON.stringify(storedLogs));
-
-      await refreshData();
-      return { success: true };
-    }
-  };
 
   // Admin Override
   const adminOverride = async (requestId: string, status: LeaveRequest['status'], notes?: string): Promise<{ success: boolean; error?: string }> => {
@@ -701,7 +624,6 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       createRequest,
       facultyAction,
       hodAction,
-      guardAction,
       adminOverride,
       uploadPassPDF,
       upsertProfileAdmin,

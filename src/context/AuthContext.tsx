@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../supabaseClient';
 
-export type UserRole = 'student' | 'faculty' | 'hod' | 'guard' | 'admin';
+export type UserRole = 'student' | 'faculty' | 'hod' | 'admin';
 
 export interface Profile {
   id: string;
@@ -65,14 +65,6 @@ export const DEMO_PROFILES: Record<string, Profile & { email: string }> = {
     parent_contact: '+91 98765 43210',
     assigned_faculty_id: 'f1000000-0000-0000-0000-000000000000',
     email: 'student@college.edu',
-    created_at: new Date().toISOString()
-  },
-  'guard@college.edu': {
-    id: 'g1000000-0000-0000-0000-000000000000',
-    full_name: 'Officer Ram Singh (Guard)',
-    role: 'guard',
-    department: 'Security Gate 1',
-    email: 'guard@college.edu',
     created_at: new Date().toISOString()
   }
 };

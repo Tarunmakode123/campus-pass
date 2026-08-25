@@ -176,9 +176,7 @@ export const AdminDashboard: React.FC = () => {
       'Expected Back', 
       'Status', 
       'Faculty Notes', 
-      'HOD Notes', 
-      'Gate Exit', 
-      'Gate Reentry'
+      'HOD Notes'
     ];
 
     const rows = filteredRequests.map(r => [
@@ -193,9 +191,7 @@ export const AdminDashboard: React.FC = () => {
       r.time_expected_back || 'Not Returning',
       r.status,
       r.faculty_notes || '',
-      r.hod_notes || '',
-      r.gate_exit_at || '',
-      r.gate_reentry_at || ''
+      r.hod_notes || ''
     ]);
 
     const csvContent = "\uFEFF" + [
@@ -314,7 +310,6 @@ export const AdminDashboard: React.FC = () => {
                             ${user.role === 'admin' ? 'bg-purple-100 text-purple-800' : ''}
                             ${user.role === 'hod' ? 'bg-indigo-100 text-indigo-800' : ''}
                             ${user.role === 'faculty' ? 'bg-sky-100 text-sky-800' : ''}
-                            ${user.role === 'guard' ? 'bg-amber-100 text-amber-800' : ''}
                             ${user.role === 'student' ? 'bg-slate-100 text-slate-800' : ''}
                           `}>
                             {user.role}
@@ -456,7 +451,6 @@ export const AdminDashboard: React.FC = () => {
                       <th className="px-4 py-3.5">Pass ID</th>
                       <th className="px-4 py-3.5">Date / Time</th>
                       <th className="px-4 py-3.5">Status</th>
-                      <th className="px-4 py-3.5">Exit / Entry Logs</th>
                       <th className="px-4 py-3.5 text-right">Actions</th>
                     </tr>
                   </thead>
@@ -474,10 +468,6 @@ export const AdminDashboard: React.FC = () => {
                           <span className="text-[10px] text-slate-400">{req.time_out} - {req.time_expected_back || 'No return'}</span>
                         </td>
                         <td className="px-4 py-3.5"><StatusBadge status={req.status} /></td>
-                        <td className="px-4 py-3.5 text-[10px] text-slate-500">
-                          <div>Exit: <strong className="text-slate-700">{req.gate_exit_at ? new Date(req.gate_exit_at).toLocaleTimeString() : '—'}</strong></div>
-                          <div>Back: <strong className="text-slate-700">{req.gate_reentry_at ? new Date(req.gate_reentry_at).toLocaleTimeString() : '—'}</strong></div>
-                        </td>
                         <td className="px-4 py-3.5 text-right">
                           <button
                             onClick={() => {
@@ -570,7 +560,6 @@ export const AdminDashboard: React.FC = () => {
                     <option value="student">Student</option>
                     <option value="faculty">Faculty</option>
                     <option value="hod">HOD (Department Head)</option>
-                    <option value="guard">Security Guard</option>
                     <option value="admin">Administrator</option>
                   </select>
                 </div>

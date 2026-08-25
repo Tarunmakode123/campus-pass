@@ -91,9 +91,13 @@ CREATE TABLE public.activity_log (
 );
 
 -- 9. Add Database Constraints & Indexes
-CREATE UNIQUE INDEX unique_active_student_request 
+CREATE UNIQUE INDEX unique_pending_student_request 
 ON public.leave_requests (student_id) 
-WHERE (status IN ('pending_faculty', 'pending_hod', 'approved'));
+WHERE (status IN ('pending_faculty', 'pending_hod'));
+
+CREATE UNIQUE INDEX unique_approved_student_request 
+ON public.leave_requests (student_id, requested_date) 
+WHERE (status = 'approved');
 
 CREATE INDEX idx_leave_requests_pass_id ON public.leave_requests(pass_id);
 CREATE INDEX idx_leave_requests_requested_date ON public.leave_requests(requested_date);

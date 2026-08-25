@@ -160,7 +160,15 @@ export const generateGatePassPDF = async (request: LeaveRequest): Promise<Blob> 
   doc.setFontSize(7.5);
   doc.text('VERIFIED & RECOMMENDED BY', 14, sigsY + 5);
   // Add Faculty Sig
-  doc.addImage(FACULTY_SIG_BASE64, 'PNG', 16, sigsY + 7, 34, 13);
+  try {
+    doc.addImage(FACULTY_SIG_BASE64, 'PNG', 16, sigsY + 7, 34, 13);
+  } catch (e) {
+    console.warn("Failed to add faculty signature image to PDF, using text fallback", e);
+    doc.setTextColor(2, 132, 199); // sky-600
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.text('[VERIFIED DIGITALLY]', 16, sigsY + 14);
+  }
   // Faculty text
   doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');
@@ -183,7 +191,15 @@ export const generateGatePassPDF = async (request: LeaveRequest): Promise<Blob> 
   doc.setFontSize(7.5);
   doc.text('APPROVED & SIGNED BY', hodSigX, sigsY + 5);
   // Add HOD Sig
-  doc.addImage(HOD_SIG_BASE64, 'PNG', hodSigX + 2, sigsY + 7, 34, 13);
+  try {
+    doc.addImage(HOD_SIG_BASE64, 'PNG', hodSigX + 2, sigsY + 7, 34, 13);
+  } catch (e) {
+    console.warn("Failed to add HOD signature image to PDF, using text fallback", e);
+    doc.setTextColor(2, 132, 199); // sky-600
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.text('[APPROVED DIGITALLY]', hodSigX + 2, sigsY + 14);
+  }
   // HOD text
   doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');

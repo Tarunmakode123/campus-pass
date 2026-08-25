@@ -32,8 +32,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children 
   }
 
   if (!allowedRoles.includes(profile.role)) {
-    // Redirect unauthorized user to their proper dashboard path
-    const correctPath = `/${profile.role}`;
+    const validRoles = ['student', 'faculty', 'hod', 'admin'];
+    const userRole = profile.role as string;
+    if (!validRoles.includes(userRole)) {
+      return <Navigate to="/login" replace />;
+    }
+    const correctPath = `/${userRole}`;
     return <Navigate to={correctPath} replace />;
   }
 
@@ -42,11 +46,19 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children 
 
 // Root Redirect component to route logged-in users directly to their dashboards
 const RootRedirect: React.FC = () => {
-  const { profile, loading } = useAuth();
+  const { profile, loading, logout } = useAuth();
 
   if (loading) return null;
   if (!profile) return <Navigate to="/login" replace />;
-  return <Navigate to={`/${profile.role}`} replace />;
+
+  const validRoles = ['student', 'faculty', 'hod', 'admin'];
+  const userRole = profile.role as string;
+  if (!validRoles.includes(userRole)) {
+    logout();
+    return <Navigate to="/login" replace />;
+  }
+
+  return <Navigate to={`/${userRole}`} replace />;
 };
 
 function App() {

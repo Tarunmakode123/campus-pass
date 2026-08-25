@@ -196,11 +196,9 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (!profile) return { success: false, error: 'User profile not found' };
 
     // Check if student already has active request
-    const today = new Date().toISOString().split('T')[0];
     const hasActive = requests.some(r => 
       r.student_id === profile.id && 
-      (['pending_faculty', 'pending_hod'].includes(r.status) ||
-       (r.status === 'approved' && r.requested_date === today))
+      ['pending_faculty', 'pending_hod'].includes(r.status)
     );
     if (hasActive) {
       return { success: false, error: 'You already have an active leave request.' };

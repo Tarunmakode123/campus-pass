@@ -61,10 +61,8 @@ export const StudentDashboard: React.FC = () => {
   };
 
   const handleOpenRequestModal = () => {
-    const today = new Date().toISOString().split('T')[0];
     const hasActive = requests.some(r => 
-      ['pending_faculty', 'pending_hod'].includes(r.status) ||
-      (r.status === 'approved' && r.requested_date === today)
+      ['pending_faculty', 'pending_hod'].includes(r.status)
     );
     if (hasActive) {
       setToast({ message: 'You cannot submit a request. You already have an active pass or request.', type: 'error' });

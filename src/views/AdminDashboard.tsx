@@ -16,7 +16,8 @@ import {
   Search, 
   Wrench, 
   Download,
-  AlertTriangle
+  AlertTriangle,
+  Upload
 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
@@ -26,7 +27,8 @@ export const AdminDashboard: React.FC = () => {
     profiles, 
     upsertProfileAdmin, 
     deleteProfileAdmin, 
-    adminOverride 
+    adminOverride,
+    bulkUploadAdmissions
   } = useDatabase();
 
   const [activeTab, setActiveTab] = useState<'users' | 'requests' | 'analytics'>('users');
@@ -36,6 +38,7 @@ export const AdminDashboard: React.FC = () => {
 
   // User Management state
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<Profile | null>(null);
   
   const [userFullName, setUserFullName] = useState('');
@@ -46,6 +49,54 @@ export const AdminDashboard: React.FC = () => {
   const [userParentContact, setUserParentContact] = useState('');
   const [userFacultyId, setUserFacultyId] = useState('');
   const [userPhotoUrl, setUserPhotoUrl] = useState('');
+
+  const handleCSVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        const lines = text.split('\n');
+        
+        const records: any[] = [];
+        // Skip header line
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          
+          const cols = line.split(',').map(s => s.trim());
+          if (cols.length >= 5) {
+            records.push({
+              roll_number: cols[0].toUpperCase(),
+              full_name: cols[1],
+              department: cols[2],
+              parent_name: cols[3],
+              parent_contact: cols[4]
+            });
+          }
+        }
+
+        if (records.length === 0) {
+          setToast({ message: 'No valid student records found in CSV.', type: 'error' });
+          return;
+        }
+
+        const result = await bulkUploadAdmissions(records);
+        if (result.success) {
+          setToast({ message: `Successfully pre-authorized ${records.length} students!`, type: 'success' });
+          setIsUploadModalOpen(false);
+        } else {
+          setToast({ message: result.error || 'Failed to upload admissions.', type: 'error' });
+        }
+      } catch (err: any) {
+        console.error(err);
+        setToast({ message: 'Failed to parse CSV file.', type: 'error' });
+      }
+    };
+    reader.readAsText(file);
+  };
 
   // Request logs filters
   const [reqSearch, setReqSearch] = useState('');
@@ -265,15 +316,24 @@ export const AdminDashboard: React.FC = () => {
       {activeTab === 'users' && (
         /* User Profiles tab */
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-base font-bold text-slate-700 tracking-wide">REGISTERED PROFILES</h3>
-            <button
-              onClick={() => handleOpenUserModal()}
-              className="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-lg text-xs shadow flex items-center gap-1.5"
-            >
-              <Plus className="w-4 h-4" />
-              Add User Profile
-            </button>
+          <div className="flex justify-between items-center text-slate-700">
+            <h3 className="text-base font-bold tracking-wide">REGISTERED PROFILES</h3>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setIsUploadModalOpen(true)}
+                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow flex items-center gap-1.5"
+              >
+                <Upload className="w-4 h-4" />
+                Upload Student CSV
+              </button>
+              <button
+                onClick={() => handleOpenUserModal()}
+                className="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-lg text-xs shadow flex items-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" />
+                Add User Profile
+              </button>
+            </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
@@ -519,6 +579,68 @@ export const AdminDashboard: React.FC = () => {
 
           {/* SVG Graphs component */}
           <SVGCharts requests={requests} />
+        </div>
+      )}
+
+      {/* Upload Student CSV Modal */}
+      {isUploadModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-100 animate-slide-in-up">
+            <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+              <h3 className="font-bold text-base flex items-center gap-2">
+                <FileSpreadsheet className="w-5 h-5 text-emerald-400" />
+                Upload Student CSV
+              </h3>
+              <button 
+                onClick={() => setIsUploadModalOpen(false)}
+                className="text-slate-400 hover:text-white transition-colors text-xl font-bold"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Pre-authorize students in bulk by uploading the official admissions CSV. Students will then be verified against this roster when they sign up.
+              </p>
+
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-slate-600 space-y-2">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Expected CSV Format:</span>
+                <code className="text-xs font-mono block bg-white border p-2 rounded break-all select-all">
+                  Roll Number,Full Name,Department,Parent Name,Parent Contact
+                </code>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mt-3">Example:</span>
+                <code className="text-[10px] font-mono block text-slate-500">
+                  CS-2023-042,Rahul Aneja,Computer Science,Suresh Aneja,+91 98765 43210
+                </code>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Select CSV File</label>
+                <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-sky-500 transition-colors relative">
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleCSVUpload}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                  <span className="text-xs font-bold text-slate-600 block">Click or Drag & Drop file here</span>
+                  <span className="text-[10px] text-slate-400 block mt-1">Only .csv files supported</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 px-6 py-4 flex justify-end gap-3 border-t">
+              <button
+                type="button"
+                onClick={() => setIsUploadModalOpen(false)}
+                className="px-4 py-2 text-slate-500 hover:text-slate-700 font-bold text-xs"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

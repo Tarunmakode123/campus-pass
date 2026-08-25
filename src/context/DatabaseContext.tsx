@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { useAuth } from './AuthContext';
+import { useAuth, DEMO_PROFILES } from './AuthContext';
 import type { Profile } from './AuthContext';
 
 export interface LeaveRequest {
@@ -44,10 +44,20 @@ export interface ActivityLog {
   actor?: Profile;
 }
 
+export interface AdmissionRecord {
+  roll_number: string;
+  full_name: string;
+  department: string;
+  parent_name: string;
+  parent_contact: string;
+  created_at?: string;
+}
+
 interface DatabaseContextType {
   requests: LeaveRequest[];
   logs: ActivityLog[];
   profiles: Profile[];
+  admissionRecords: AdmissionRecord[];
   loading: boolean;
   refreshData: () => Promise<void>;
   createRequest: (request: Omit<LeaveRequest, 'id' | 'status' | 'faculty_confirmed_parent' | 'created_at' | 'updated_at'>) => Promise<{ success: boolean; data?: LeaveRequest; error?: string }>;
@@ -55,6 +65,7 @@ interface DatabaseContextType {
   hodAction: (requestId: string, approve: boolean, notes: string) => Promise<{ success: boolean; error?: string }>;
   adminOverride: (requestId: string, status: LeaveRequest['status'], notes?: string) => Promise<{ success: boolean; error?: string }>;
   uploadPassPDF: (requestId: string, pdfBlob: Blob) => Promise<{ success: boolean; publicUrl?: string; error?: string }>;
+  bulkUploadAdmissions: (records: Omit<AdmissionRecord, 'created_at'>[]) => Promise<{ success: boolean; error?: string }>;
   
   // Admin User Management
   upsertProfileAdmin: (profileData: Omit<Profile, 'created_at'>) => Promise<{ success: boolean; error?: string }>;
@@ -68,6 +79,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [admissionRecords, setAdmissionRecords] = useState<AdmissionRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Initialize and reload data
@@ -75,7 +87,26 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (!profile) {
       setRequests([]);
       setLogs([]);
-      setProfiles([]);
+      setAdmissionRecords([]);
+      
+      // Fetch faculty profiles for anonymous signup screen advisor dropdown
+      if (!isDemoMode) {
+        try {
+          const { data: facultyData } = await supabase.from('profiles').select('*').eq('role', 'faculty');
+          setProfiles(facultyData || []);
+        } catch (e) {
+          console.warn('Failed to fetch public faculty list:', e);
+          setProfiles([]);
+        }
+      } else {
+        const storedProfiles: Profile[] = JSON.parse(localStorage.getItem('gp_mock_profiles') || '[]');
+        if (storedProfiles.length === 0) {
+          const defaultList = Object.keys(DEMO_PROFILES).map(k => DEMO_PROFILES[k]);
+          setProfiles(defaultList.filter(p => p.role === 'faculty'));
+        } else {
+          setProfiles(storedProfiles.filter(p => p.role === 'faculty'));
+        }
+      }
       setLoading(false);
       return;
     }
@@ -87,6 +118,10 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // Fetch Profiles
         const { data: profilesData } = await supabase.from('profiles').select('*');
         setProfiles(profilesData || []);
+
+        // Fetch Admissions Records
+        const { data: admissionsData } = await supabase.from('admission_records').select('*');
+        setAdmissionRecords(admissionsData || []);
 
         // Fetch Leave Requests based on RLS & Role logic
         let query = supabase
@@ -126,6 +161,36 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const storedLogs: ActivityLog[] = JSON.parse(localStorage.getItem('gp_mock_logs') || '[]');
 
         setProfiles(storedProfiles);
+
+        // Fetch / seed mock admissions records
+        let storedAdmissions: AdmissionRecord[] = JSON.parse(localStorage.getItem('gp_mock_admissions') || '[]');
+        if (storedAdmissions.length === 0) {
+          storedAdmissions = [
+            {
+              roll_number: 'CS-2023-042',
+              full_name: 'Rahul Aneja',
+              department: 'Computer Science',
+              parent_name: 'Suresh Aneja',
+              parent_contact: '+91 98765 43210'
+            },
+            {
+              roll_number: 'CS-2023-100',
+              full_name: 'Aditya Gupta',
+              department: 'Computer Science',
+              parent_name: 'Ramesh Gupta',
+              parent_contact: '+91 99999 88888'
+            },
+            {
+              roll_number: 'IT-2023-005',
+              full_name: 'Priya Sharma',
+              department: 'IT',
+              parent_name: 'Vijay Sharma',
+              parent_contact: '+91 95555 12345'
+            }
+          ];
+          localStorage.setItem('gp_mock_admissions', JSON.stringify(storedAdmissions));
+        }
+        setAdmissionRecords(storedAdmissions);
 
         // Join and filter requests
         let filteredRequests = storedRequests.map(req => {
@@ -548,6 +613,39 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  // Bulk Upload pre-authorized student admissions records
+  const bulkUploadAdmissions = async (records: Omit<AdmissionRecord, 'created_at'>[]): Promise<{ success: boolean; error?: string }> => {
+    if (!isDemoMode) {
+      try {
+        const { error } = await supabase
+          .from('admission_records')
+          .upsert(records, { onConflict: 'roll_number' });
+
+        if (error) return { success: false, error: error.message };
+        await refreshData();
+        return { success: true };
+      } catch (e: any) {
+        return { success: false, error: e.message };
+      }
+    } else {
+      // Mock Mode bulk upload
+      const currentAdmissions: AdmissionRecord[] = JSON.parse(localStorage.getItem('gp_mock_admissions') || '[]');
+      
+      records.forEach(newRec => {
+        const idx = currentAdmissions.findIndex(a => a.roll_number === newRec.roll_number);
+        if (idx > -1) {
+          currentAdmissions[idx] = newRec;
+        } else {
+          currentAdmissions.push(newRec);
+        }
+      });
+
+      localStorage.setItem('gp_mock_admissions', JSON.stringify(currentAdmissions));
+      await refreshData();
+      return { success: true };
+    }
+  };
+
   // Admin User Management - Add/Edit Profile
   const upsertProfileAdmin = async (profileData: Omit<Profile, 'created_at'>): Promise<{ success: boolean; error?: string }> => {
     if (!isDemoMode) {
@@ -619,6 +717,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       requests,
       logs,
       profiles,
+      admissionRecords,
       loading,
       refreshData,
       createRequest,
@@ -626,6 +725,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       hodAction,
       adminOverride,
       uploadPassPDF,
+      bulkUploadAdmissions,
       upsertProfileAdmin,
       deleteProfileAdmin
     }}>

@@ -24,6 +24,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateProfile: (profileData: Partial<Profile>) => Promise<{ success: boolean; error?: string }>;
+  registerStudent: (rollNumber: string, email: string, password: string, assignedFacultyId: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -230,8 +231,102 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Register Student with roll number verification
+  const registerStudent = async (rollNumber: string, email: string, password: string, assignedFacultyId: string): Promise<{ success: boolean; error?: string }> => {
+    const cleanRoll = rollNumber.toUpperCase().trim();
+    
+    if (!isDemoMode) {
+      try {
+        // 1. Verify roll number in admission_records
+        const { data: record, error: recordError } = await supabase
+          .from('admission_records')
+          .select('*')
+          .eq('roll_number', cleanRoll)
+          .single();
+
+        if (recordError || !record) {
+          return { success: false, error: 'Roll number not found in college admissions database.' };
+        }
+
+        // 2. Register user with metadata
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: record.full_name,
+              role: 'student',
+              roll_number: cleanRoll,
+              department: record.department,
+              parent_name: record.parent_name,
+              parent_contact: record.parent_contact,
+              assigned_faculty_id: assignedFacultyId
+            }
+          }
+        });
+
+        if (signUpError) return { success: false, error: signUpError.message };
+        if (!signUpData.user) return { success: false, error: 'Registration failed.' };
+        
+        // Supabase will trigger handle_new_user automatically, which populates the profile.
+        // We log them in by fetching their profile:
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', signUpData.user.id)
+          .single();
+
+        setUser(signUpData.user);
+        setProfile(profileData);
+        return { success: true };
+      } catch (e: any) {
+        return { success: false, error: e.message };
+      }
+    } else {
+      // Mock Mode registration
+      const storedAdmissions = JSON.parse(localStorage.getItem('gp_mock_admissions') || '[]');
+      const matchedRecord = storedAdmissions.find((r: any) => r.roll_number.toUpperCase().trim() === cleanRoll);
+
+      if (!matchedRecord) {
+        return { success: false, error: 'Roll number not found in college admissions database.' };
+      }
+
+      // Create new mock student profile
+      const newId = 's' + Math.random().toString(36).substr(2, 9);
+      const newProfile: Profile = {
+        id: newId,
+        full_name: matchedRecord.full_name,
+        role: 'student',
+        roll_number: cleanRoll,
+        department: matchedRecord.department,
+        photo_url: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80', // default photo
+        parent_name: matchedRecord.parent_name,
+        parent_contact: matchedRecord.parent_contact,
+        assigned_faculty_id: assignedFacultyId,
+        created_at: new Date().toISOString()
+      };
+
+      const mockProfiles = JSON.parse(localStorage.getItem('gp_mock_profiles') || '[]');
+      
+      // Seed default profiles if not present in mock
+      if (mockProfiles.length === 0) {
+        Object.keys(DEMO_PROFILES).forEach(k => {
+          mockProfiles.push(DEMO_PROFILES[k]);
+        });
+      }
+
+      mockProfiles.push(newProfile);
+      localStorage.setItem('gp_mock_profiles', JSON.stringify(mockProfiles));
+
+      // Log in
+      setUser({ id: newId, email });
+      setProfile(newProfile);
+      return { success: true };
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, isDemoMode, login, logout, updateProfile }}>
+    <AuthContext.Provider value={{ user, profile, loading, isDemoMode, login, logout, updateProfile, registerStudent }}>
       {children}
     </AuthContext.Provider>
   );

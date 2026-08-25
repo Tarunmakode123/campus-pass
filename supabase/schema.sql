@@ -7,9 +7,9 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- 2. Drop existing triggers and functions if they exist
+-- (Note: Triggers on tables are automatically dropped when the tables are dropped)
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS public.handle_new_user();
-DROP TRIGGER IF EXISTS trg_generate_pass_id ON public.leave_requests;
 DROP FUNCTION IF EXISTS public.generate_unique_pass_id();
 DROP FUNCTION IF EXISTS public.get_user_role(uuid);
 DROP FUNCTION IF EXISTS public.get_user_department(uuid);

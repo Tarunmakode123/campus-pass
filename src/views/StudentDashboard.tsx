@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 
 export const StudentDashboard: React.FC = () => {
-  const { profile } = useAuth();
+  const { profile, isDemoMode } = useAuth();
   const { requests, createRequest, uploadPassPDF } = useDatabase();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -111,9 +111,24 @@ export const StudentDashboard: React.FC = () => {
       setIsPdfGenerating(req.id);
       let pdfUrl = req.pass_pdf_url;
 
-      if (!pdfUrl) {
+      // In mock/demo mode, blob URLs expire upon reload. Force regeneration every time.
+      const isBlobUrl = pdfUrl && pdfUrl.startsWith('blob:');
+      if (!pdfUrl || isBlobUrl || isDemoMode) {
         // Generate PDF on the fly
         const pdfBlob = await generateGatePassPDF(req);
+        if (isDemoMode) {
+          const localUrl = URL.createObjectURL(pdfBlob);
+          const link = document.createElement('a');
+          link.href = localUrl;
+          link.download = `GatePass_${req.pass_id || req.id}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(localUrl), 1000); // delay revocation to prevent Chrome download failures
+          setIsPdfGenerating(null);
+          return;
+        }
+
         const uploadResult = await uploadPassPDF(req.id, pdfBlob);
         if (uploadResult.success) {
           pdfUrl = uploadResult.publicUrl;

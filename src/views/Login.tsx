@@ -6,7 +6,7 @@ import { Compass, Mail, Lock, ShieldAlert, Key, UserCheck } from 'lucide-react';
 import { Toast } from '../components/Toast';
 
 export const Login: React.FC = () => {
-  const { login, registerStudent } = useAuth();
+  const { login, registerStudent, isDemoMode } = useAuth();
   const { profiles } = useDatabase();
   const navigate = useNavigate();
   
@@ -240,41 +240,43 @@ export const Login: React.FC = () => {
         )}
 
         {/* Demo Mode Presets Indicator */}
-        <div className="mt-8 border-t border-slate-100 pt-6">
-          <div className="flex items-center gap-1.5 justify-center mb-3">
-            <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />
-            <span className="text-xs font-bold text-slate-500 tracking-wide">DEMO PRESET ACCOUNTS</span>
+        {isDemoMode && (
+          <div className="mt-8 border-t border-slate-100 pt-6">
+            <div className="flex items-center gap-1.5 justify-center mb-3">
+              <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />
+              <span className="text-xs font-bold text-slate-500 tracking-wide">DEMO PRESET ACCOUNTS</span>
+            </div>
+            <p className="text-[10px] text-slate-400 text-center mb-4 leading-normal">
+              Select a role below to autofill its demo credentials. The password for all accounts is <code className="bg-slate-50 px-1 py-0.5 rounded font-mono font-bold text-slate-600">password123</code>.
+            </p>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <button 
+                onClick={() => fillCredentials('student@college.edu')} 
+                className="py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 font-semibold border border-slate-200 rounded text-center"
+              >
+                Student
+              </button>
+              <button 
+                onClick={() => fillCredentials('faculty@college.edu')} 
+                className="py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 font-semibold border border-slate-200 rounded text-center"
+              >
+                Faculty
+              </button>
+              <button 
+                onClick={() => fillCredentials('hod@college.edu')} 
+                className="py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 font-semibold border border-slate-200 rounded text-center"
+              >
+                HOD (CS)
+              </button>
+              <button 
+                onClick={() => fillCredentials('admin@college.edu')} 
+                className="py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 font-semibold border border-slate-200 rounded text-center"
+              >
+                Administrator
+              </button>
+            </div>
           </div>
-          <p className="text-[10px] text-slate-400 text-center mb-4 leading-normal">
-            Select a role below to autofill its demo credentials. The password for all accounts is <code className="bg-slate-50 px-1 py-0.5 rounded font-mono font-bold text-slate-600">password123</code>.
-          </p>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <button 
-              onClick={() => fillCredentials('student@college.edu')} 
-              className="py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 font-semibold border border-slate-200 rounded text-center"
-            >
-              Student
-            </button>
-            <button 
-              onClick={() => fillCredentials('faculty@college.edu')} 
-              className="py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 font-semibold border border-slate-200 rounded text-center"
-            >
-              Faculty
-            </button>
-            <button 
-              onClick={() => fillCredentials('hod@college.edu')} 
-              className="py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 font-semibold border border-slate-200 rounded text-center"
-            >
-              HOD (CS)
-            </button>
-            <button 
-              onClick={() => fillCredentials('admin@college.edu')} 
-              className="py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 font-semibold border border-slate-200 rounded text-center"
-            >
-              Administrator
-            </button>
-          </div>
-        </div>
+        )}
       </div>
 
       {toast && (

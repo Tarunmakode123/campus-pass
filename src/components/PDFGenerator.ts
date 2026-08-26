@@ -41,12 +41,12 @@ export const generateGatePassPDF = async (request: LeaveRequest): Promise<Blob> 
 
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.text('CAMPUS EMERGENCY GATE PASS', width / 2, 16, { align: 'center' });
+  doc.setFontSize(11);
+  doc.text('INDORE INSTITUTE OF SCIENCE & TECHNOLOGY - IIST', width / 2, 14, { align: 'center' });
   doc.setFontSize(8.5);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('helvetica', 'bold');
   doc.setTextColor(186, 230, 253); // sky-200
-  doc.text('OFFICIAL VERIFIED DEPARTURE PERMIT', width / 2, 23, { align: 'center' });
+  doc.text('CAMPUS EMERGENCY LEAVE GATE PASS', width / 2, 23, { align: 'center' });
 
   // 3. Student Details Block with Prominent LARGEST Photo on left
   const photoX = 12;

@@ -10,8 +10,7 @@ import {
   ClipboardList, 
   UserCheck, 
   Building2, 
-  Users,
-  Compass
+  Users
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -91,12 +90,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-sky-600 rounded-lg flex items-center justify-center shadow-md">
-                <Compass className="w-6 h-6 text-white" />
+              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md overflow-hidden border border-slate-700">
+                <img src="/iist-logo.png" alt="IIST Logo" className="w-full h-full object-cover" />
               </div>
               <div>
-                <h1 className="text-base font-bold tracking-tight leading-tight">Campus Gate Pass</h1>
-                <p className="text-[10px] text-slate-400 font-medium">Emergency Leave Portal</p>
+                <h1 className="text-base font-bold tracking-tight leading-tight">IIST Gate Pass</h1>
+                <p className="text-[10px] text-slate-400 font-medium">Indore Institute of Science & Technology</p>
               </div>
             </div>
 

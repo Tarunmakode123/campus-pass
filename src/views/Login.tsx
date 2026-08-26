@@ -74,12 +74,12 @@ export const Login: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center px-4 bg-slate-900 relative">
-      {/* College Logo Placeholder */}
+      {/* College Logo */}
       <div className="mb-8 flex flex-col items-center text-center">
-        <div className="w-16 h-16 bg-sky-600 rounded-2xl flex items-center justify-center shadow-lg border border-sky-400 mb-3">
-          <Compass className="w-10 h-10 text-white" />
+        <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg border border-slate-700 mb-3 overflow-hidden">
+          <img src="/iist-logo.png" alt="IIST Logo" className="w-full h-full object-cover" />
         </div>
-        <h2 className="text-2xl font-bold tracking-tight text-white">CITY COLLEGE OF ENGINEERING</h2>
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white px-2">Indore Institute of Science & Technology - IIST</h2>
         <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase mt-1">Campus Gate Pass Registry</p>
       </div>
 

@@ -39,14 +39,34 @@ export const generateGatePassPDF = async (request: LeaveRequest): Promise<Blob> 
   doc.setFillColor(15, 23, 42); // Slate-900 header
   doc.rect(7.3, 7.3, width - 14.6, 24, 'F');
 
+  // Load IIST Logo
+  let logoImg: HTMLImageElement | null = null;
+  try {
+    logoImg = await loadPhotoHelper('/iist-logo.png');
+  } catch (e) {
+    console.warn("Failed to load IIST logo for PDF:", e);
+  }
+
+  if (logoImg) {
+    try {
+      doc.addImage(logoImg, 'PNG', 11, 11.3, 16, 16);
+    } catch (e) {
+      console.warn("Failed to draw logo inside PDF header:", e);
+    }
+  }
+
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text('INDORE INSTITUTE OF SCIENCE & TECHNOLOGY - IIST', width / 2, 14, { align: 'center' });
+  
+  const textX = logoImg ? 30 : width / 2;
+  const textAlign = logoImg ? 'left' : 'center';
+
+  doc.setFontSize(9.5);
+  doc.text('INDORE INSTITUTE OF SCIENCE & TECHNOLOGY', textX, 17, { align: textAlign });
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(186, 230, 253); // sky-200
-  doc.text('CAMPUS EMERGENCY LEAVE GATE PASS', width / 2, 23, { align: 'center' });
+  doc.text('CAMPUS EMERGENCY LEAVE GATE PASS', textX, 24, { align: textAlign });
 
   // 3. Student Details Block with Prominent LARGEST Photo on left
   const photoX = 12;

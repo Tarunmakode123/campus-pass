@@ -179,16 +179,22 @@ export const generateGatePassPDF = async (request: LeaveRequest): Promise<Blob> 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.text('VERIFIED & RECOMMENDED BY', 14, sigsY + 5);
-  // Add Faculty Sig
-  try {
-    doc.addImage(FACULTY_SIG_BASE64, 'PNG', 16, sigsY + 7, 34, 13);
-  } catch (e) {
-    console.warn("Failed to add faculty signature image to PDF, using text fallback", e);
-    doc.setTextColor(2, 132, 199); // sky-600
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.text('[VERIFIED DIGITALLY]', 16, sigsY + 14);
-  }
+  // Add Faculty Digital Stamp
+  doc.setFillColor(240, 253, 250); // teal-50 background card
+  doc.rect(12, sigsY + 7, (width - 28) / 2, 16, 'F');
+  doc.setDrawColor(13, 148, 136); // teal-600 border
+  doc.setLineWidth(0.4);
+  doc.rect(12, sigsY + 7, (width - 28) / 2, 16, 'S');
+
+  doc.setTextColor(13, 148, 136); // teal-600
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.text('✓ DIGITALLY VERIFIED', 15, sigsY + 12);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(71, 85, 105); // slate-600
+  doc.text(`REF: IIST-FAC-${request.pass_id?.substring(0, 8).toUpperCase() || 'PENDING'}`, 15, sigsY + 16.5);
+  doc.text(`DATE: ${request.requested_date}`, 15, sigsY + 20.5);
   // Faculty text
   doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');
@@ -210,16 +216,22 @@ export const generateGatePassPDF = async (request: LeaveRequest): Promise<Blob> 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.text('APPROVED & SIGNED BY', hodSigX, sigsY + 5);
-  // Add HOD Sig
-  try {
-    doc.addImage(HOD_SIG_BASE64, 'PNG', hodSigX + 2, sigsY + 7, 34, 13);
-  } catch (e) {
-    console.warn("Failed to add HOD signature image to PDF, using text fallback", e);
-    doc.setTextColor(2, 132, 199); // sky-600
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.text('[APPROVED DIGITALLY]', hodSigX + 2, sigsY + 14);
-  }
+  // Add HOD Digital Stamp
+  doc.setFillColor(239, 246, 255); // blue-50 background card
+  doc.rect(hodSigX - 2, sigsY + 7, (width - 28) / 2, 16, 'F');
+  doc.setDrawColor(37, 99, 235); // blue-600 border
+  doc.setLineWidth(0.4);
+  doc.rect(hodSigX - 2, sigsY + 7, (width - 28) / 2, 16, 'S');
+
+  doc.setTextColor(37, 99, 235); // blue-600
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.text('✓ APPROVED & SIGNED', hodSigX + 1, sigsY + 12);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(71, 85, 105); // slate-600
+  doc.text(`REF: IIST-HOD-${request.pass_id?.substring(0, 8).toUpperCase() || 'APPROVED'}`, hodSigX + 1, sigsY + 16.5);
+  doc.text(`DATE: ${request.requested_date}`, hodSigX + 1, sigsY + 20.5);
   // HOD text
   doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');

@@ -284,7 +284,7 @@ export const StudentDashboard: React.FC = () => {
       {/* Request Emergency Leave Modal Form */}
       {isOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-100 animate-slide-in-up">
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-100 animate-slide-in-up">
             <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
               <h3 className="font-bold text-base">Request Emergency Leave</h3>
               <button 
@@ -295,7 +295,7 @@ export const StudentDashboard: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Reason Category</label>
                 <select

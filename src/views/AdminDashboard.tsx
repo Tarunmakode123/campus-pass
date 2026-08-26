@@ -647,7 +647,7 @@ export const AdminDashboard: React.FC = () => {
       {/* User Management Form Modal */}
       {isUserModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-100 animate-slide-in-up">
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-100 animate-slide-in-up">
             <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
               <h3 className="font-bold text-base">{editingUser ? 'Edit User Profile' : 'Add User Profile'}</h3>
               <button 
@@ -658,7 +658,7 @@ export const AdminDashboard: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleUserSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleUserSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Full Name</label>
@@ -796,7 +796,7 @@ export const AdminDashboard: React.FC = () => {
       {/* Manual Override Status Modal */}
       {overrideReq && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-100 animate-slide-in-up">
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-100 animate-slide-in-up">
             <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
               <h3 className="font-bold text-base">Manual Leave Override</h3>
               <button 
@@ -807,7 +807,7 @@ export const AdminDashboard: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleOverrideSubmit} className="p-6 space-y-4 text-xs font-semibold">
+            <form onSubmit={handleOverrideSubmit} className="p-6 space-y-4 text-xs font-semibold overflow-y-auto flex-1">
               <div className="bg-amber-50 p-3 rounded-lg border border-amber-200 text-amber-800 flex items-start gap-2 leading-normal">
                 <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
                 <span>

@@ -381,7 +381,7 @@ export const FacultyDashboard: React.FC = () => {
       {/* Rejection Comment Modal */}
       {rejectingReq && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-100 animate-slide-in-up">
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-100 animate-slide-in-up">
             <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
               <h3 className="font-bold text-base">Reject Leave Request</h3>
               <button 
@@ -392,7 +392,7 @@ export const FacultyDashboard: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
               <p className="text-xs text-slate-500 font-medium leading-normal">
                 Please provide a rejection reason for <strong className="text-slate-800 font-bold">{rejectingReq.student?.full_name}</strong>'s emergency request. The student will see this note immediately on their dashboard.
               </p>

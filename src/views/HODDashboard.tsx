@@ -457,7 +457,7 @@ export const HODDashboard: React.FC = () => {
       {/* HOD Rejection Reason Modal */}
       {rejectingReq && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-100 animate-slide-in-up">
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-100 animate-slide-in-up">
             <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
               <h3 className="font-bold text-base">Reject Leave Request</h3>
               <button 
@@ -468,7 +468,7 @@ export const HODDashboard: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-6 space-y-4 text-xs font-semibold">
+            <div className="p-6 space-y-4 text-xs font-semibold overflow-y-auto flex-1">
               <p className="text-slate-500 font-medium leading-normal">
                 Explain HOD rejection reasons for student <strong className="text-slate-800 font-bold">{rejectingReq.student?.full_name}</strong>. Student will be notified.
               </p>

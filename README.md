@@ -115,16 +115,3 @@ To log in as the Administrator for the first time:
     ```
 6. Click **Save**. You can now log in to the website to upload student directories and register Faculty/HOD staff credentials.
 
----
-
-## 🏫 Creating a Copy for another College (e.g., Acropolis College)
-
-To clone and configure a completely separate copy of this system for another college:
-
-1.  **Duplicate the Repo**: Clone this project locally, create a new repository on GitHub (e.g., `acropolis-gate-pass`), and push your code there.
-2.  **Branding Updates**:
-    *   **Logo**: Swap out `public/iist-logo.png` with the new Acropolis logo.
-    *   **Tab Title**: Edit `<title>` in `index.html` to represent the new college.
-    *   **Portal Titles**: Update text titles inside `src/views/Login.tsx` and `src/components/Layout.tsx`.
-    *   **PDF Design**: Update the printed college name in `src/components/PDFGenerator.ts` and change references.
-3.  **New Supabase Project**: Set up a new project in Supabase, run the database triggers from `schema.sql`, and connect the Vercel variables to this new project.

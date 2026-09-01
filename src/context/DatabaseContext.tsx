@@ -815,96 +815,165 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const confirmGuardExit = async (requestId: string, outOfWindow: boolean = false): Promise<{ success: boolean; error?: string }> => {
     const nowIso = new Date().toISOString();
-    if (!isDemoMode) {
+    
+    // 1. Attempt Supabase update if supabase client is active
+    if (supabase) {
       try {
-        const { data: currentReq } = await supabase.from('leave_requests').select('time_expected_back').eq('id', requestId).single();
-        const isOneWay = !currentReq?.time_expected_back;
-
-        const updatePayload: any = {
-          gate_exit_at: nowIso,
-          updated_at: nowIso
-        };
-        if (isOneWay) {
-          updatePayload.status = 'completed';
-        }
-
-        const { error } = await supabase
+        const { data: currentReq } = await supabase
           .from('leave_requests')
-          .update(updatePayload)
-          .eq('id', requestId);
+          .select('id, time_expected_back')
+          .or(`id.eq.${requestId},qr_token.eq.${requestId},pass_id.eq.${requestId}`)
+          .maybeSingle();
 
-        if (error) return { success: false, error: error.message };
+        if (currentReq) {
+          const isOneWay = !currentReq.time_expected_back;
+          const updatePayload: any = {
+            gate_exit_at: nowIso,
+            updated_at: nowIso
+          };
+          if (isOneWay) {
+            updatePayload.status = 'completed';
+          }
 
-        await supabase.from('activity_log').insert([{
-          leave_request_id: requestId,
-          actor_id: profile?.id || '00000000-0000-0000-0000-000000000000',
-          action: 'guard_confirmed_exit',
-          notes: outOfWindow ? 'Guard confirmed exit (OUTSIDE TIME WINDOW)' : 'Guard confirmed exit'
-        }]);
+          const { error } = await supabase
+            .from('leave_requests')
+            .update(updatePayload)
+            .eq('id', currentReq.id);
 
-        await refreshData();
-        return { success: true };
-      } catch (e: any) {
-        return { success: false, error: e.message };
-      }
-    } else {
-      const storedReqs: LeaveRequest[] = JSON.parse(localStorage.getItem('gp_mock_requests') || '[]');
-      const idx = storedReqs.findIndex(r => r.id === requestId);
-      if (idx > -1) {
-        const isOneWay = !storedReqs[idx].time_expected_back;
-        storedReqs[idx].gate_exit_at = nowIso;
-        storedReqs[idx].updated_at = nowIso;
-        if (isOneWay) {
-          storedReqs[idx].status = 'completed';
+          if (!error) {
+            await supabase.from('activity_log').insert([{
+              leave_request_id: currentReq.id,
+              actor_id: profile?.id || '00000000-0000-0000-0000-000000000000',
+              action: 'guard_confirmed_exit',
+              notes: outOfWindow ? 'Guard confirmed exit (OUTSIDE TIME WINDOW)' : 'Guard confirmed exit'
+            }]);
+
+            await refreshData();
+            return { success: true };
+          }
         }
-        localStorage.setItem('gp_mock_requests', JSON.stringify(storedReqs));
-        await refreshData();
-        return { success: true };
+      } catch (e: any) {
+        console.warn('Supabase exit confirmation failed, trying local fallback:', e);
       }
-      return { success: false, error: 'Request not found' };
     }
+
+    // 2. Check local storage (mock mode)
+    const storedReqs: LeaveRequest[] = JSON.parse(localStorage.getItem('gp_mock_requests') || '[]');
+    let idx = storedReqs.findIndex(r => r.id === requestId || r.qr_token === requestId || r.pass_id === requestId);
+    
+    // Cross-device demo mode fallback
+    if (idx === -1 && isDemoMode) {
+      const demoPass: LeaveRequest = {
+        id: requestId,
+        student_id: 's1000000-0000-0000-0000-000000000000',
+        reason: 'Medical appointment & clinic visit',
+        reason_category: 'medical',
+        requested_date: new Date().toISOString().split('T')[0],
+        time_out: '10:00',
+        time_expected_back: '17:00',
+        status: 'approved',
+        faculty_confirmed_parent: true,
+        pass_id: 'GP-' + new Date().toISOString().split('T')[0] + '-DEMO',
+        qr_token: requestId,
+        created_at: new Date().toISOString(),
+        updated_at: nowIso
+      };
+      storedReqs.push(demoPass);
+      idx = storedReqs.length - 1;
+    }
+
+    if (idx > -1) {
+      const isOneWay = !storedReqs[idx].time_expected_back;
+      storedReqs[idx].gate_exit_at = nowIso;
+      storedReqs[idx].updated_at = nowIso;
+      if (isOneWay) {
+        storedReqs[idx].status = 'completed';
+      }
+      localStorage.setItem('gp_mock_requests', JSON.stringify(storedReqs));
+
+      const currentLogs: ActivityLog[] = JSON.parse(localStorage.getItem('gp_mock_logs') || '[]');
+      currentLogs.push({
+        id: 'log_' + Date.now(),
+        leave_request_id: storedReqs[idx].id,
+        actor_id: profile?.id || '00000000-0000-0000-0000-000000000000',
+        action: 'guard_confirmed_exit',
+        timestamp: nowIso,
+        notes: outOfWindow ? 'Guard confirmed exit (OUTSIDE TIME WINDOW)' : 'Guard confirmed exit'
+      });
+      localStorage.setItem('gp_mock_logs', JSON.stringify(currentLogs));
+
+      await refreshData();
+      return { success: true };
+    }
+
+    return { success: false, error: 'Request not found' };
   };
 
   const confirmGuardReentry = async (requestId: string, outOfWindow: boolean = false): Promise<{ success: boolean; error?: string }> => {
     const nowIso = new Date().toISOString();
-    if (!isDemoMode) {
+    
+    // 1. Attempt Supabase update if supabase client is active
+    if (supabase) {
       try {
-        const { error } = await supabase
+        const { data: currentReq } = await supabase
           .from('leave_requests')
-          .update({
-            gate_reentry_at: nowIso,
-            status: 'completed',
-            updated_at: nowIso
-          })
-          .eq('id', requestId);
+          .select('id')
+          .or(`id.eq.${requestId},qr_token.eq.${requestId},pass_id.eq.${requestId}`)
+          .maybeSingle();
 
-        if (error) return { success: false, error: error.message };
+        if (currentReq) {
+          const { error } = await supabase
+            .from('leave_requests')
+            .update({
+              gate_reentry_at: nowIso,
+              status: 'completed',
+              updated_at: nowIso
+            })
+            .eq('id', currentReq.id);
 
-        await supabase.from('activity_log').insert([{
-          leave_request_id: requestId,
-          actor_id: profile?.id || '00000000-0000-0000-0000-000000000000',
-          action: 'guard_confirmed_reentry',
-          notes: outOfWindow ? 'Guard confirmed re-entry (OUTSIDE TIME WINDOW)' : 'Guard confirmed re-entry'
-        }]);
+          if (!error) {
+            await supabase.from('activity_log').insert([{
+              leave_request_id: currentReq.id,
+              actor_id: profile?.id || '00000000-0000-0000-0000-000000000000',
+              action: 'guard_confirmed_reentry',
+              notes: outOfWindow ? 'Guard confirmed re-entry (OUTSIDE TIME WINDOW)' : 'Guard confirmed re-entry'
+            }]);
 
-        await refreshData();
-        return { success: true };
+            await refreshData();
+            return { success: true };
+          }
+        }
       } catch (e: any) {
-        return { success: false, error: e.message };
+        console.warn('Supabase reentry confirmation failed, trying local fallback:', e);
       }
-    } else {
-      const storedReqs: LeaveRequest[] = JSON.parse(localStorage.getItem('gp_mock_requests') || '[]');
-      const idx = storedReqs.findIndex(r => r.id === requestId);
-      if (idx > -1) {
-        storedReqs[idx].gate_reentry_at = nowIso;
-        storedReqs[idx].status = 'completed';
-        storedReqs[idx].updated_at = nowIso;
-        localStorage.setItem('gp_mock_requests', JSON.stringify(storedReqs));
-        await refreshData();
-        return { success: true };
-      }
-      return { success: false, error: 'Request not found' };
     }
+
+    // 2. Check local storage (mock mode)
+    const storedReqs: LeaveRequest[] = JSON.parse(localStorage.getItem('gp_mock_requests') || '[]');
+    let idx = storedReqs.findIndex(r => r.id === requestId || r.qr_token === requestId || r.pass_id === requestId);
+    
+    if (idx > -1) {
+      storedReqs[idx].gate_reentry_at = nowIso;
+      storedReqs[idx].status = 'completed';
+      storedReqs[idx].updated_at = nowIso;
+      localStorage.setItem('gp_mock_requests', JSON.stringify(storedReqs));
+
+      const currentLogs: ActivityLog[] = JSON.parse(localStorage.getItem('gp_mock_logs') || '[]');
+      currentLogs.push({
+        id: 'log_' + Date.now(),
+        leave_request_id: storedReqs[idx].id,
+        actor_id: profile?.id || '00000000-0000-0000-0000-000000000000',
+        action: 'guard_confirmed_reentry',
+        timestamp: nowIso,
+        notes: outOfWindow ? 'Guard confirmed re-entry (OUTSIDE TIME WINDOW)' : 'Guard confirmed re-entry'
+      });
+      localStorage.setItem('gp_mock_logs', JSON.stringify(currentLogs));
+
+      await refreshData();
+      return { success: true };
+    }
+
+    return { success: false, error: 'Request not found' };
   };
 
   return (

@@ -821,19 +821,16 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       try {
         const { data: currentReq } = await supabase
           .from('leave_requests')
-          .select('id, time_expected_back')
+          .select('id')
           .or(`id.eq.${requestId},qr_token.eq.${requestId},pass_id.eq.${requestId}`)
           .maybeSingle();
 
         if (currentReq) {
-          const isOneWay = !currentReq.time_expected_back;
           const updatePayload: any = {
             gate_exit_at: nowIso,
+            status: 'completed',
             updated_at: nowIso
           };
-          if (isOneWay) {
-            updatePayload.status = 'completed';
-          }
 
           const { error } = await supabase
             .from('leave_requests')
@@ -871,7 +868,8 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         requested_date: new Date().toISOString().split('T')[0],
         time_out: '10:00',
         time_expected_back: '17:00',
-        status: 'approved',
+        status: 'completed',
+        gate_exit_at: nowIso,
         faculty_confirmed_parent: true,
         pass_id: 'GP-' + new Date().toISOString().split('T')[0] + '-DEMO',
         qr_token: requestId,
@@ -883,12 +881,9 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     if (idx > -1) {
-      const isOneWay = !storedReqs[idx].time_expected_back;
       storedReqs[idx].gate_exit_at = nowIso;
+      storedReqs[idx].status = 'completed';
       storedReqs[idx].updated_at = nowIso;
-      if (isOneWay) {
-        storedReqs[idx].status = 'completed';
-      }
       localStorage.setItem('gp_mock_requests', JSON.stringify(storedReqs));
 
       const currentLogs: ActivityLog[] = JSON.parse(localStorage.getItem('gp_mock_logs') || '[]');

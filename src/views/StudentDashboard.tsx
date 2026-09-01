@@ -6,6 +6,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { Stepper } from '../components/Stepper';
 import { generateGatePassPDF } from '../components/PDFGenerator';
 import { Toast } from '../components/Toast';
+import QRCode from 'qrcode';
 import { 
   FileText, 
   Plus, 
@@ -13,7 +14,8 @@ import {
   Calendar, 
   Clock, 
   AlertCircle,
-  Info
+  Info,
+  QrCode
 } from 'lucide-react';
 
 export const StudentDashboard: React.FC = () => {
@@ -21,8 +23,23 @@ export const StudentDashboard: React.FC = () => {
   const { requests, createRequest, uploadPassPDF } = useDatabase();
 
   const [isOpen, setIsOpen] = useState(false);
+  const [qrModalReq, setQrModalReq] = useState<LeaveRequest | null>(null);
+  const [qrModalDataUrl, setQrModalDataUrl] = useState<string | null>(null);
+
   const [category, setCategory] = useState<'medical' | 'family emergency' | 'personal' | 'other'>('medical');
   const [reason, setReason] = useState('');
+
+  const handleShowQrModal = async (req: LeaveRequest) => {
+    setQrModalReq(req);
+    const token = req.qr_token || req.id;
+    const verifyUrl = `https://campus-pass-nu.vercel.app/verify/${token}`;
+    try {
+      const url = await QRCode.toDataURL(verifyUrl, { margin: 2, width: 300 });
+      setQrModalDataUrl(url);
+    } catch (e) {
+      console.error('Failed to generate QR code data URL:', e);
+    }
+  };
   const [requestedDate, setRequestedDate] = useState(new Date().toISOString().split('T')[0]);
   const [timeOut, setTimeOut] = useState('10:00');
   const [notReturningToday, setNotReturningToday] = useState(false);
@@ -224,9 +241,16 @@ export const StudentDashboard: React.FC = () => {
                         <p className="text-xs text-slate-500 mt-1">{req.reason}</p>
                       </div>
 
-                      {/* PDF actions for approved and completed passes */}
+                      {/* PDF & QR actions for approved and completed passes */}
                       {(isApproved || isCompleted) && (
                         <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            onClick={() => handleShowQrModal(req)}
+                            className="px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
+                          >
+                            <QrCode className="w-3.5 h-3.5" />
+                            Show Guard QR
+                          </button>
                           <button
                             onClick={() => handlePdfAction(req, true)}
                             disabled={isPdfGenerating === req.id}
@@ -418,6 +442,44 @@ export const StudentDashboard: React.FC = () => {
       )}
 
 
+
+      {/* Gate QR Code Modal */}
+      {qrModalReq && qrModalDataUrl && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 text-center shadow-2xl space-y-4 animate-slide-in-up">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div className="flex items-center space-x-2">
+                <QrCode className="w-5 h-5 text-sky-600" />
+                <h3 className="font-bold text-slate-800 text-sm">Security Gate Pass QR</h3>
+              </div>
+              <button 
+                onClick={() => setQrModalReq(null)} 
+                className="text-slate-400 hover:text-slate-700 text-xl font-bold leading-none"
+              >
+                &times;
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500">Show this QR Code to the Security Guard at the gate for instant scanning & verification.</p>
+
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 inline-block mx-auto shadow-inner">
+              <img src={qrModalDataUrl} alt="Guard QR Code" className="w-56 h-56 mx-auto rounded-lg" />
+            </div>
+
+            <div className="bg-sky-50/80 p-3 rounded-xl border border-sky-100 text-xs text-sky-900">
+              <span className="font-mono font-bold block">{qrModalReq.pass_id || 'GP-APPROVED'}</span>
+              <span className="text-[11px] text-sky-700 block mt-0.5">Cryptographically signed & verifiable</span>
+            </div>
+
+            <button
+              onClick={() => setQrModalReq(null)}
+              className="w-full py-2.5 bg-slate-900 text-white font-bold text-xs rounded-xl hover:bg-slate-800 transition"
+            >
+              Close View
+            </button>
+          </div>
+        </div>
+      )}
 
       {toast && (
         <Toast 

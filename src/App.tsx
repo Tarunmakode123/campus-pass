@@ -8,10 +8,11 @@ import { StudentDashboard } from './views/StudentDashboard';
 import { FacultyDashboard } from './views/FacultyDashboard';
 import { HODDashboard } from './views/HODDashboard';
 import { AdminDashboard } from './views/AdminDashboard';
+import { GuardVerification } from './views/GuardVerification';
 
 // Secure Routes by Role
 interface ProtectedRouteProps {
-  allowedRoles: ('student' | 'faculty' | 'hod' | 'admin')[];
+  allowedRoles: ('student' | 'faculty' | 'hod' | 'admin' | 'guard')[];
   children: React.ReactElement;
 }
 
@@ -32,7 +33,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children 
   }
 
   if (!allowedRoles.includes(profile.role)) {
-    const validRoles = ['student', 'faculty', 'hod', 'admin'];
+    const validRoles = ['student', 'faculty', 'hod', 'admin', 'guard'];
     const userRole = profile.role as string;
     if (!validRoles.includes(userRole)) {
       return <Navigate to="/login" replace />;
@@ -51,11 +52,15 @@ const RootRedirect: React.FC = () => {
   if (loading) return null;
   if (!profile) return <Navigate to="/login" replace />;
 
-  const validRoles = ['student', 'faculty', 'hod', 'admin'];
+  const validRoles = ['student', 'faculty', 'hod', 'admin', 'guard'];
   const userRole = profile.role as string;
   if (!validRoles.includes(userRole)) {
     logout();
     return <Navigate to="/login" replace />;
+  }
+
+  if (userRole === 'guard') {
+    return <Navigate to="/admin" replace />;
   }
 
   return <Navigate to={`/${userRole}`} replace />;
@@ -67,8 +72,9 @@ function App() {
       <DatabaseProvider>
         <Router>
           <Routes>
-            {/* Public Login Route */}
+            {/* Public Routes */}
             <Route path="/login" element={<Login />} />
+            <Route path="/verify/:qrToken" element={<GuardVerification />} />
 
             {/* Protected Role-Based Routes */}
             <Route 
@@ -99,7 +105,7 @@ function App() {
             <Route 
               path="/admin" 
               element={
-                <ProtectedRoute allowedRoles={['admin']}>
+                <ProtectedRoute allowedRoles={['admin', 'guard']}>
                   <AdminDashboard />
                 </ProtectedRoute>
               } 

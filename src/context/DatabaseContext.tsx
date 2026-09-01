@@ -23,6 +23,9 @@ export interface LeaveRequest {
   hod_notes?: string | null;
 
   pass_id?: string | null;
+  qr_token?: string | null;
+  gate_exit_at?: string | null;
+  gate_reentry_at?: string | null;
   pass_pdf_url?: string | null;
   
   created_at: string;
@@ -67,6 +70,12 @@ interface DatabaseContextType {
   uploadPassPDF: (requestId: string, pdfBlob: Blob) => Promise<{ success: boolean; publicUrl?: string; error?: string }>;
   bulkUploadAdmissions: (records: Omit<AdmissionRecord, 'created_at'>[]) => Promise<{ success: boolean; error?: string }>;
   
+  // Guard & QR Code Verification Functions
+  fetchRequestByQrToken: (qrToken: string) => Promise<{ success: boolean; data?: LeaveRequest; error?: string }>;
+  logQrScan: (requestId: string) => Promise<void>;
+  confirmGuardExit: (requestId: string, outOfWindow?: boolean) => Promise<{ success: boolean; error?: string }>;
+  confirmGuardReentry: (requestId: string, outOfWindow?: boolean) => Promise<{ success: boolean; error?: string }>;
+
   // Admin User Management
   upsertProfileAdmin: (profileData: Omit<Profile, 'created_at'>) => Promise<{ success: boolean; error?: string }>;
   deleteProfileAdmin: (profileId: string) => Promise<{ success: boolean; error?: string }>;
@@ -688,6 +697,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   // Admin User Management - Delete Profile
+  // Admin User Management - Delete Profile
   const deleteProfileAdmin = async (profileId: string): Promise<{ success: boolean; error?: string }> => {
     if (!isDemoMode) {
       try {
@@ -712,6 +722,162 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  // Guard & QR Code Verification Functions
+  const fetchRequestByQrToken = async (qrToken: string): Promise<{ success: boolean; data?: LeaveRequest; error?: string }> => {
+    if (!isDemoMode) {
+      try {
+        const { data, error } = await supabase
+          .from('leave_requests')
+          .select('*, student:profiles!student_id(*), faculty:profiles!faculty_id(*), hod:profiles!hod_id(*)')
+          .eq('qr_token', qrToken)
+          .single();
+
+        if (error || !data) {
+          // Fallback check by id or pass_id if qr_token lookup fails
+          const { data: fallbackData } = await supabase
+            .from('leave_requests')
+            .select('*, student:profiles!student_id(*), faculty:profiles!faculty_id(*), hod:profiles!hod_id(*)')
+            .or(`id.eq.${qrToken},pass_id.eq.${qrToken}`)
+            .single();
+
+          if (fallbackData) return { success: true, data: fallbackData as LeaveRequest };
+          return { success: false, error: error?.message || 'Pass not found' };
+        }
+        return { success: true, data: data as LeaveRequest };
+      } catch (e: any) {
+        return { success: false, error: e.message };
+      }
+    } else {
+      const storedReqs: LeaveRequest[] = JSON.parse(localStorage.getItem('gp_mock_requests') || '[]');
+      const found = storedReqs.find(r => r.qr_token === qrToken || r.id === qrToken || r.pass_id === qrToken);
+      if (found) {
+        return { success: true, data: found };
+      }
+      return { success: false, error: 'Pass not found in demo mode' };
+    }
+  };
+
+  const logQrScan = async (requestId: string): Promise<void> => {
+    const actorId = profile?.id || '00000000-0000-0000-0000-000000000000';
+    if (!isDemoMode) {
+      try {
+        await supabase.from('activity_log').insert([{
+          leave_request_id: requestId,
+          actor_id: actorId,
+          action: 'qr_scanned',
+          notes: 'Scanned at security gate'
+        }]);
+      } catch (e) {
+        console.warn('Failed to log QR scan:', e);
+      }
+    } else {
+      const currentLogs: ActivityLog[] = JSON.parse(localStorage.getItem('gp_mock_logs') || '[]');
+      currentLogs.push({
+        id: 'log_' + Date.now(),
+        leave_request_id: requestId,
+        actor_id: actorId,
+        action: 'qr_scanned',
+        timestamp: new Date().toISOString(),
+        notes: 'Scanned at security gate'
+      });
+      localStorage.setItem('gp_mock_logs', JSON.stringify(currentLogs));
+    }
+  };
+
+  const confirmGuardExit = async (requestId: string, outOfWindow: boolean = false): Promise<{ success: boolean; error?: string }> => {
+    const nowIso = new Date().toISOString();
+    if (!isDemoMode) {
+      try {
+        const { data: currentReq } = await supabase.from('leave_requests').select('time_expected_back').eq('id', requestId).single();
+        const isOneWay = !currentReq?.time_expected_back;
+
+        const updatePayload: any = {
+          gate_exit_at: nowIso,
+          updated_at: nowIso
+        };
+        if (isOneWay) {
+          updatePayload.status = 'completed';
+        }
+
+        const { error } = await supabase
+          .from('leave_requests')
+          .update(updatePayload)
+          .eq('id', requestId);
+
+        if (error) return { success: false, error: error.message };
+
+        await supabase.from('activity_log').insert([{
+          leave_request_id: requestId,
+          actor_id: profile?.id || '00000000-0000-0000-0000-000000000000',
+          action: 'guard_confirmed_exit',
+          notes: outOfWindow ? 'Guard confirmed exit (OUTSIDE TIME WINDOW)' : 'Guard confirmed exit'
+        }]);
+
+        await refreshData();
+        return { success: true };
+      } catch (e: any) {
+        return { success: false, error: e.message };
+      }
+    } else {
+      const storedReqs: LeaveRequest[] = JSON.parse(localStorage.getItem('gp_mock_requests') || '[]');
+      const idx = storedReqs.findIndex(r => r.id === requestId);
+      if (idx > -1) {
+        const isOneWay = !storedReqs[idx].time_expected_back;
+        storedReqs[idx].gate_exit_at = nowIso;
+        storedReqs[idx].updated_at = nowIso;
+        if (isOneWay) {
+          storedReqs[idx].status = 'completed';
+        }
+        localStorage.setItem('gp_mock_requests', JSON.stringify(storedReqs));
+        await refreshData();
+        return { success: true };
+      }
+      return { success: false, error: 'Request not found' };
+    }
+  };
+
+  const confirmGuardReentry = async (requestId: string, outOfWindow: boolean = false): Promise<{ success: boolean; error?: string }> => {
+    const nowIso = new Date().toISOString();
+    if (!isDemoMode) {
+      try {
+        const { error } = await supabase
+          .from('leave_requests')
+          .update({
+            gate_reentry_at: nowIso,
+            status: 'completed',
+            updated_at: nowIso
+          })
+          .eq('id', requestId);
+
+        if (error) return { success: false, error: error.message };
+
+        await supabase.from('activity_log').insert([{
+          leave_request_id: requestId,
+          actor_id: profile?.id || '00000000-0000-0000-0000-000000000000',
+          action: 'guard_confirmed_reentry',
+          notes: outOfWindow ? 'Guard confirmed re-entry (OUTSIDE TIME WINDOW)' : 'Guard confirmed re-entry'
+        }]);
+
+        await refreshData();
+        return { success: true };
+      } catch (e: any) {
+        return { success: false, error: e.message };
+      }
+    } else {
+      const storedReqs: LeaveRequest[] = JSON.parse(localStorage.getItem('gp_mock_requests') || '[]');
+      const idx = storedReqs.findIndex(r => r.id === requestId);
+      if (idx > -1) {
+        storedReqs[idx].gate_reentry_at = nowIso;
+        storedReqs[idx].status = 'completed';
+        storedReqs[idx].updated_at = nowIso;
+        localStorage.setItem('gp_mock_requests', JSON.stringify(storedReqs));
+        await refreshData();
+        return { success: true };
+      }
+      return { success: false, error: 'Request not found' };
+    }
+  };
+
   return (
     <DatabaseContext.Provider value={{
       requests,
@@ -726,6 +892,10 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       adminOverride,
       uploadPassPDF,
       bulkUploadAdmissions,
+      fetchRequestByQrToken,
+      logQrScan,
+      confirmGuardExit,
+      confirmGuardReentry,
       upsertProfileAdmin,
       deleteProfileAdmin
     }}>

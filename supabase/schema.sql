@@ -26,7 +26,7 @@ DROP TYPE IF EXISTS leave_category;
 DROP TYPE IF EXISTS user_role;
 
 -- 5. Create Enums
-CREATE TYPE user_role AS ENUM ('student', 'faculty', 'hod', 'admin');
+CREATE TYPE user_role AS ENUM ('student', 'faculty', 'hod', 'admin', 'guard');
 CREATE TYPE leave_category AS ENUM ('medical', 'family emergency', 'personal', 'other');
 CREATE TYPE leave_status AS ENUM (
   'pending_faculty', 
@@ -34,7 +34,8 @@ CREATE TYPE leave_status AS ENUM (
   'approved', 
   'rejected_by_faculty', 
   'rejected_by_hod', 
-  'expired'
+  'expired',
+  'completed'
 );
 
 -- 6. Create Pre-Authorized Admissions Table
@@ -83,8 +84,11 @@ CREATE TABLE public.leave_requests (
   hod_action_at timestamp with time zone,
   hod_notes text,
 
-  -- Gate Pass fields
+  -- Gate Pass & Anti-Cloning QR Token fields
   pass_id text UNIQUE,
+  qr_token text UNIQUE DEFAULT gen_random_uuid()::text,
+  gate_exit_at timestamp with time zone,
+  gate_reentry_at timestamp with time zone,
   pass_pdf_url text,
   
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
@@ -111,6 +115,7 @@ ON public.leave_requests (student_id, requested_date)
 WHERE (status = 'approved');
 
 CREATE INDEX idx_leave_requests_pass_id ON public.leave_requests(pass_id);
+CREATE INDEX idx_leave_requests_qr_token ON public.leave_requests(qr_token);
 CREATE INDEX idx_leave_requests_requested_date ON public.leave_requests(requested_date);
 
 -- 11. Helper functions for RLS
@@ -242,18 +247,28 @@ ON public.leave_requests FOR ALL
 TO authenticated
 USING (public.get_user_role(auth.uid()) = 'admin');
 
+CREATE POLICY "Guards can view and update leave requests"
+ON public.leave_requests FOR ALL
+TO authenticated
+USING (public.get_user_role(auth.uid()) = 'guard');
+
+CREATE POLICY "Public read access by qr_token"
+ON public.leave_requests FOR SELECT
+TO anon, authenticated
+USING (qr_token IS NOT NULL);
+
 -- Activity Log Policies
 CREATE POLICY "Allow read access to activity logs based on request visibility"
 ON public.activity_log FOR SELECT
-TO authenticated
+TO anon, authenticated
 USING (
   leave_request_id IN (SELECT id FROM public.leave_requests)
 );
 
-CREATE POLICY "Allow insertions by active actors"
+CREATE POLICY "Allow insertions of activity logs for scans and actor actions"
 ON public.activity_log FOR INSERT
-TO authenticated
-WITH CHECK (actor_id = auth.uid());
+TO anon, authenticated
+WITH CHECK (true);
 
 CREATE POLICY "Admin has full access on activity logs"
 ON public.activity_log FOR ALL

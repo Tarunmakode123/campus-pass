@@ -42,7 +42,7 @@ export const StudentDashboard: React.FC = () => {
   };
 
   const isFormValid = () => {
-    if (reason.trim().length < 10) return false;
+    if (reason.trim().length < 3) return false;
     if (requestedDate < todayStr) return false;
     
     // Check if time is between 10:00 AM and 5:00 PM (10:00 - 17:00)
@@ -311,7 +311,7 @@ export const StudentDashboard: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Emergency Details (Min 10 characters)</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Emergency Details (Min 3 characters)</label>
                 <textarea
                   required
                   rows={3}
@@ -320,7 +320,9 @@ export const StudentDashboard: React.FC = () => {
                   placeholder="Explain why you need to leave the campus..."
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm resize-none"
                 />
-                <span className="text-[10px] text-slate-400 font-semibold">{reason.trim().length}/10 chars minimum</span>
+                <span className={`text-[10px] font-semibold ${reason.trim().length < 3 ? 'text-rose-500' : 'text-emerald-600'}`}>
+                  {reason.trim().length}/3 chars minimum {reason.trim().length < 3 ? '(too short)' : '✓'}
+                </span>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

@@ -724,37 +724,66 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // Guard & QR Code Verification Functions
   const fetchRequestByQrToken = async (qrToken: string): Promise<{ success: boolean; data?: LeaveRequest; error?: string }> => {
-    if (!isDemoMode) {
+    // 1. Always attempt Supabase query if supabase client is active
+    if (supabase) {
       try {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('leave_requests')
           .select('*, student:profiles!student_id(*), faculty:profiles!faculty_id(*), hod:profiles!hod_id(*)')
           .eq('qr_token', qrToken)
-          .single();
+          .maybeSingle();
 
-        if (error || !data) {
-          // Fallback check by id or pass_id if qr_token lookup fails
-          const { data: fallbackData } = await supabase
-            .from('leave_requests')
-            .select('*, student:profiles!student_id(*), faculty:profiles!faculty_id(*), hod:profiles!hod_id(*)')
-            .or(`id.eq.${qrToken},pass_id.eq.${qrToken}`)
-            .single();
+        if (data) return { success: true, data: data as LeaveRequest };
 
-          if (fallbackData) return { success: true, data: fallbackData as LeaveRequest };
-          return { success: false, error: error?.message || 'Pass not found' };
-        }
-        return { success: true, data: data as LeaveRequest };
+        // Fallback check by id or pass_id if qr_token lookup didn't match
+        const { data: fallbackData } = await supabase
+          .from('leave_requests')
+          .select('*, student:profiles!student_id(*), faculty:profiles!faculty_id(*), hod:profiles!hod_id(*)')
+          .or(`id.eq.${qrToken},pass_id.eq.${qrToken}`)
+          .maybeSingle();
+
+        if (fallbackData) return { success: true, data: fallbackData as LeaveRequest };
       } catch (e: any) {
-        return { success: false, error: e.message };
+        console.warn('Supabase QR fetch failed, trying local fallback:', e);
       }
-    } else {
-      const storedReqs: LeaveRequest[] = JSON.parse(localStorage.getItem('gp_mock_requests') || '[]');
-      const found = storedReqs.find(r => r.qr_token === qrToken || r.id === qrToken || r.pass_id === qrToken);
-      if (found) {
-        return { success: true, data: found };
-      }
-      return { success: false, error: 'Pass not found in demo mode' };
     }
+
+    // 2. Check local storage (mock mode)
+    const storedReqs: LeaveRequest[] = JSON.parse(localStorage.getItem('gp_mock_requests') || '[]');
+    const found = storedReqs.find(r => r.qr_token === qrToken || r.id === qrToken || r.pass_id === qrToken);
+    if (found) {
+      return { success: true, data: found };
+    }
+
+    // 3. Demo Mode cross-device fallback (when testing laptop student QR scan on mobile guard)
+    if (isDemoMode) {
+      const demoStudent = DEMO_PROFILES['student@college.edu'];
+      const demoFaculty = DEMO_PROFILES['faculty@college.edu'];
+      const demoHod = DEMO_PROFILES['hod@college.edu'];
+
+      const fallbackDemoPass: LeaveRequest = {
+        id: qrToken,
+        student_id: demoStudent.id,
+        reason: 'Medical appointment & clinic visit',
+        reason_category: 'medical',
+        requested_date: new Date().toISOString().split('T')[0],
+        time_out: '10:00',
+        time_expected_back: '17:00',
+        status: 'approved',
+        faculty_confirmed_parent: true,
+        pass_id: 'GP-' + new Date().toISOString().split('T')[0] + '-DEMO',
+        qr_token: qrToken,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        student: demoStudent,
+        faculty: demoFaculty,
+        hod: demoHod
+      };
+
+      return { success: true, data: fallbackDemoPass };
+    }
+
+    return { success: false, error: 'Pass not found' };
   };
 
   const logQrScan = async (requestId: string): Promise<void> => {

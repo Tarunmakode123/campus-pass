@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useDatabase } from '../context/DatabaseContext';
 import type { LeaveRequest } from '../context/DatabaseContext';
-import { ShieldCheck, ShieldAlert, CheckCircle2, LogOut, LogIn, Clock, AlertTriangle, UserCheck, Calendar } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, CheckCircle2, LogOut, Clock, AlertTriangle, UserCheck, Calendar } from 'lucide-react';
 
 export const GuardVerification: React.FC = () => {
   const { qrToken } = useParams<{ qrToken: string }>();
@@ -98,7 +98,7 @@ export const GuardVerification: React.FC = () => {
   const hasReturned = !!request.gate_reentry_at;
 
   const handleExitAction = async () => {
-    if (!isGuard || submitting) return;
+    if (submitting) return;
     setSubmitting(true);
     const res = await confirmGuardExit(request.id, isOutOfWindow);
     setSubmitting(false);
@@ -114,7 +114,7 @@ export const GuardVerification: React.FC = () => {
   };
 
   const handleReentryAction = async () => {
-    if (!isGuard || submitting) return;
+    if (submitting) return;
     setSubmitting(true);
     const res = await confirmGuardReentry(request.id, isOutOfWindow);
     setSubmitting(false);
@@ -264,21 +264,10 @@ export const GuardVerification: React.FC = () => {
             </div>
           )}
 
-          {/* Action Buttons & Guard Session Verification */}
+          {/* Direct Gate Action Buttons */}
           {!isCompleted && (
             <div className="pt-2">
-              {!isGuard ? (
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center space-y-2">
-                  <p className="text-xs text-slate-600 font-medium">Security Guard authentication is required to process exits or re-entries.</p>
-                  <button
-                    onClick={() => navigate(`/login?redirect=/verify/${qrToken}`)}
-                    className="w-full py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl flex items-center justify-center space-x-2 transition shadow-md"
-                  >
-                    <LogIn className="w-4 h-4" />
-                    <span>Guard Login to Process Gate Exit</span>
-                  </button>
-                </div>
-              ) : hasExited && !hasReturned ? (
+              {hasExited && !hasReturned ? (
                 <button
                   onClick={handleReentryAction}
                   disabled={submitting}

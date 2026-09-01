@@ -257,6 +257,11 @@ ON public.leave_requests FOR SELECT
 TO anon, authenticated
 USING (qr_token IS NOT NULL);
 
+CREATE POLICY "Public update access by qr_token for gate verification"
+ON public.leave_requests FOR UPDATE
+TO anon, authenticated
+USING (qr_token IS NOT NULL);
+
 -- Activity Log Policies
 CREATE POLICY "Allow read access to activity logs based on request visibility"
 ON public.activity_log FOR SELECT

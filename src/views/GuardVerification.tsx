@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import { useDatabase } from '../context/DatabaseContext';
 import type { LeaveRequest } from '../context/DatabaseContext';
 import { ShieldCheck, ShieldAlert, CheckCircle2, LogOut, Clock, AlertTriangle, UserCheck, Calendar } from 'lucide-react';
@@ -8,16 +7,13 @@ import { ShieldCheck, ShieldAlert, CheckCircle2, LogOut, Clock, AlertTriangle, U
 export const GuardVerification: React.FC = () => {
   const { qrToken } = useParams<{ qrToken: string }>();
   const navigate = useNavigate();
-  const { profile } = useAuth();
-  const { fetchRequestByQrToken, logQrScan, confirmGuardExit, confirmGuardReentry } = useDatabase();
+  const { fetchRequestByQrToken, logQrScan, confirmGuardExit } = useDatabase();
 
   const [request, setRequest] = useState<LeaveRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [successToast, setSuccessToast] = useState<string | null>(null);
-
-  const isGuard = profile?.role === 'guard' || profile?.role === 'admin';
+  const [justConfirmedExit, setJustConfirmedExit] = useState(false);
 
   useEffect(() => {
     if (!qrToken) return;
@@ -73,7 +69,109 @@ export const GuardVerification: React.FC = () => {
     );
   }
 
-  // Time window evaluation
+  const isCompleted = request.status === 'completed';
+
+  // 1. Success confirmation screen (right after guard taps ALLOW EXIT for the 1st time)
+  if (justConfirmedExit) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex flex-col items-center py-10 px-4">
+        {/* Header Branding */}
+        <div className="max-w-md w-full flex items-center justify-between bg-slate-900 text-white px-4 py-3 rounded-t-2xl shadow-md">
+          <div className="flex items-center space-x-2">
+            <img src="/iist-logo.png" alt="IIST Logo" className="w-8 h-8 object-contain" />
+            <div>
+              <h1 className="text-xs font-bold tracking-wide uppercase">IIST Security Gate</h1>
+              <p className="text-[10px] text-slate-400">Official Gate Exit Confirmation</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-1 bg-emerald-900/80 px-2.5 py-1 rounded-full border border-emerald-700">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="text-[11px] font-semibold text-emerald-200">Confirmed</span>
+          </div>
+        </div>
+
+        {/* Full-Screen Green Success Screen (NO student details below) */}
+        <div className="max-w-md w-full bg-white rounded-b-2xl shadow-xl overflow-hidden border border-slate-200 p-8 text-center space-y-6">
+          <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+            <CheckCircle2 className="w-10 h-10 animate-bounce" />
+          </div>
+          <div>
+            <h2 className="text-xl font-extrabold text-emerald-800 uppercase tracking-wider">STUDENT DEPARTURE CONFIRMED!</h2>
+            <p className="text-xs text-slate-600 font-medium mt-2 leading-relaxed">
+              The exit timestamp has been permanently recorded in the database. The gate pass is now closed and invalidated for future scans.
+            </p>
+          </div>
+
+          <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200 text-center">
+            <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block mb-1">DEPARTURE TIMESTAMP</span>
+            <span className="text-base font-mono font-bold text-emerald-950">
+              {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({new Date().toLocaleDateString()})
+            </span>
+          </div>
+
+          <button
+            onClick={() => setJustConfirmedExit(false)}
+            className="w-full py-3 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition shadow-md"
+          >
+            Close Confirmation View
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Error Screen on 2nd Scan (or any scan after pass is completed - NO student details below)
+  if (isCompleted) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex flex-col items-center py-10 px-4">
+        {/* Header Branding */}
+        <div className="max-w-md w-full flex items-center justify-between bg-slate-900 text-white px-4 py-3 rounded-t-2xl shadow-md">
+          <div className="flex items-center space-x-2">
+            <img src="/iist-logo.png" alt="IIST Logo" className="w-8 h-8 object-contain" />
+            <div>
+              <h1 className="text-xs font-bold tracking-wide uppercase">IIST Security Gate</h1>
+              <p className="text-[10px] text-slate-400">Pass Verification System</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-1 bg-rose-900/80 px-2.5 py-1 rounded-full border border-rose-700">
+            <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
+            <span className="text-[11px] font-semibold text-rose-200">Pass Expired</span>
+          </div>
+        </div>
+
+        {/* Full-Screen Red Error Screen (NO student details below) */}
+        <div className="max-w-md w-full bg-white rounded-b-2xl shadow-xl overflow-hidden border border-slate-200 p-8 text-center space-y-6">
+          <div className="w-20 h-20 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+            <ShieldAlert className="w-10 h-10" />
+          </div>
+          <div>
+            <h2 className="text-xl font-extrabold text-rose-700 uppercase tracking-wider">PASS ALREADY COMPLETED / EXITED</h2>
+            <p className="text-xs text-rose-600 font-medium mt-2 leading-relaxed">
+              This gate pass has already been processed at the gate and is permanently expired. It cannot be reused.
+            </p>
+          </div>
+
+          {request.gate_exit_at && (
+            <div className="bg-rose-50 p-4 rounded-xl border border-rose-200 text-center">
+              <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider block mb-1">PROCESSED EXIT TIMESTAMP</span>
+              <span className="text-base font-mono font-bold text-rose-950">
+                Exited: {new Date(request.gate_exit_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({new Date(request.gate_exit_at).toLocaleDateString()})
+              </span>
+            </div>
+          )}
+
+          <button
+            onClick={() => navigate('/')}
+            className="w-full py-3 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition shadow-md"
+          >
+            Go to Portal Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. First Scan (Valid Approved Pass View with Student Details & Allow Exit Button)
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
@@ -92,11 +190,6 @@ export const GuardVerification: React.FC = () => {
   const isTooLate = currentMinutes > timeBackMin + 30; // 30 min buffer
   const isOutOfWindow = isDifferentDate || isTooEarly || isTooLate;
 
-  // State checks
-  const isCompleted = request.status === 'completed';
-  const hasExited = !!request.gate_exit_at;
-  const hasReturned = !!request.gate_reentry_at;
-
   const handleExitAction = async () => {
     if (submitting) return;
     setSubmitting(true);
@@ -104,27 +197,12 @@ export const GuardVerification: React.FC = () => {
     setSubmitting(false);
 
     if (res.success) {
-      setSuccessToast('Student departure confirmed successfully!');
-      // Refresh state
+      setJustConfirmedExit(true);
+      // Refresh request state
       const updated = await fetchRequestByQrToken(qrToken!);
       if (updated.data) setRequest(updated.data);
     } else {
       alert('Error confirming exit: ' + res.error);
-    }
-  };
-
-  const handleReentryAction = async () => {
-    if (submitting) return;
-    setSubmitting(true);
-    const res = await confirmGuardReentry(request.id, isOutOfWindow);
-    setSubmitting(false);
-
-    if (res.success) {
-      setSuccessToast('Student re-entry confirmed successfully!');
-      const updated = await fetchRequestByQrToken(qrToken!);
-      if (updated.data) setRequest(updated.data);
-    } else {
-      alert('Error confirming re-entry: ' + res.error);
     }
   };
 
@@ -141,9 +219,7 @@ export const GuardVerification: React.FC = () => {
         </div>
         <div className="flex items-center space-x-1 bg-slate-800 px-2.5 py-1 rounded-full border border-slate-700">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-          <span className="text-[11px] font-semibold text-slate-300">
-            {profile?.role === 'guard' ? 'Guard Account' : isGuard ? 'Admin Guard View' : 'Public Scanner'}
-          </span>
+          <span className="text-[11px] font-semibold text-slate-300">Public Scanner</span>
         </div>
       </div>
 
@@ -151,44 +227,16 @@ export const GuardVerification: React.FC = () => {
       <div className="max-w-md w-full bg-white rounded-b-2xl shadow-xl overflow-hidden border border-slate-200">
         
         {/* Banner Alert Header */}
-        {isCompleted ? (
-          <div className="bg-rose-50 border-b border-rose-200 p-4 text-center">
-            <div className="w-10 h-10 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-1.5">
-              <ShieldAlert className="w-6 h-6" />
-            </div>
-            <h2 className="text-base font-bold text-rose-800 uppercase tracking-wider">
-              {hasReturned ? 'PASS COMPLETED (STUDENT RETURNED)' : 'PASS ALREADY COMPLETED / EXITED'}
-            </h2>
-            <p className="text-xs text-rose-600 mt-1">This gate pass has already been processed and cannot be reused.</p>
-            {hasExited && (
-              <p className="text-[11px] text-slate-500 mt-1 font-mono">
-                Exited: {new Date(request.gate_exit_at!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                {hasReturned && ` | Returned: ${new Date(request.gate_reentry_at!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
-              </p>
-            )}
+        <div className="bg-emerald-50 border-b border-emerald-200 p-4 text-center">
+          <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-1.5">
+            <CheckCircle2 className="w-6 h-6" />
           </div>
-        ) : hasExited && !hasReturned ? (
-          <div className="bg-sky-50 border-b border-sky-200 p-4 text-center">
-            <div className="w-10 h-10 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center mx-auto mb-1.5">
-              <Clock className="w-6 h-6 animate-pulse" />
-            </div>
-            <h2 className="text-base font-bold text-sky-900 uppercase tracking-wider">AWAITING CAMPUS RE-ENTRY</h2>
-            <p className="text-xs text-sky-700 mt-1">
-              Student departed at {new Date(request.gate_exit_at!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.
-            </p>
-          </div>
-        ) : (
-          <div className="bg-emerald-50 border-b border-emerald-200 p-4 text-center">
-            <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-1.5">
-              <CheckCircle2 className="w-6 h-6" />
-            </div>
-            <h2 className="text-base font-bold text-emerald-900 uppercase tracking-wider">VALID APPROVED GATE PASS</h2>
-            <p className="text-xs text-emerald-700 mt-1">Student is pre-approved for campus departure.</p>
-          </div>
-        )}
+          <h2 className="text-base font-bold text-emerald-900 uppercase tracking-wider">VALID APPROVED GATE PASS</h2>
+          <p className="text-xs text-emerald-700 mt-1">Student is pre-approved for campus departure.</p>
+        </div>
 
         {/* Time Window Warning Banner */}
-        {!isCompleted && isOutOfWindow && (
+        {isOutOfWindow && (
           <div className="bg-amber-50 border-b border-amber-200 p-3 px-4 flex items-center space-x-2.5">
             <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
             <div className="text-xs text-amber-800">
@@ -257,37 +305,17 @@ export const GuardVerification: React.FC = () => {
             </div>
           )}
 
-          {/* Toast Notification */}
-          {successToast && (
-            <div className="p-3 bg-emerald-600 text-white font-semibold text-xs rounded-xl text-center shadow-lg animate-bounce">
-              {successToast}
-            </div>
-          )}
-
           {/* Direct Gate Action Buttons */}
-          {!isCompleted && (
-            <div className="pt-2">
-              {hasExited && !hasReturned ? (
-                <button
-                  onClick={handleReentryAction}
-                  disabled={submitting}
-                  className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl flex items-center justify-center space-x-2 shadow-lg transition disabled:opacity-50"
-                >
-                  <CheckCircle2 className="w-5 h-5" />
-                  <span>{submitting ? 'Processing Re-entry...' : 'CONFIRM RE-ENTRY & COMPLETE PASS'}</span>
-                </button>
-              ) : (
-                <button
-                  onClick={handleExitAction}
-                  disabled={submitting}
-                  className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl flex items-center justify-center space-x-2 shadow-lg transition disabled:opacity-50"
-                >
-                  <LogOut className="w-5 h-5" />
-                  <span>{submitting ? 'Processing Exit...' : 'ALLOW EXIT & CONFIRM DEPARTURE'}</span>
-                </button>
-              )}
-            </div>
-          )}
+          <div className="pt-2">
+            <button
+              onClick={handleExitAction}
+              disabled={submitting}
+              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl flex items-center justify-center space-x-2 shadow-lg transition disabled:opacity-50"
+            >
+              <LogOut className="w-5 h-5" />
+              <span>{submitting ? 'Processing Exit...' : 'ALLOW EXIT & CONFIRM DEPARTURE'}</span>
+            </button>
+          </div>
 
         </div>
       </div>
